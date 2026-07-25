@@ -1,0 +1,127 @@
+%-------------------------
+% Sample resume — Jake's Resume template (placeholder content).
+% Copy this to resume_go.tex and resume_node.tex, replace with YOUR content.
+% Your real resume_go.tex / resume_node.tex are gitignored, so they never get committed.
+%-------------------------
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+
+\pdfgentounicode=1
+
+\newcommand{\resumeItem}[1]{\item\small{{#1 \vspace{-2pt}}}}
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+\newcommand{\resumeProjectHeading}[2]{
+    \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \small#1 & #2 \\
+    \end{tabular*}\vspace{-7pt}
+}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+    \textbf{\Huge \scshape Firstname Lastname} \\ \vspace{1pt}
+    \small Backend Engineer $|$ Distributed Systems \\ \vspace{1pt}
+    Your City, Country $|$
+    \href{mailto:you@example.com}{you@example.com} $|$ +00-0000000000 \\ \vspace{1pt}
+    \href{https://linkedin.com/in/your-handle}{LinkedIn} $|$
+    \href{https://github.com/your-handle}{GitHub}
+\end{center}
+
+%-----------PROFESSIONAL SUMMARY-----------
+\section{Professional Summary}
+\small{One or two sentences summarizing your experience, core stack, and the kind of roles
+you target. The Resume Tailor agent only rewrites THIS line, your skills list, and the order
+of existing bullets — it never invents experience.}
+\vspace{-4pt}
+
+%-----------TECHNICAL SKILLS-----------
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Language A, Language B, SQL} \\
+     \textbf{Backend}{: Framework A, REST APIs, Microservices} \\
+     \textbf{Databases}{: PostgreSQL, Redis, MongoDB} \\
+     \textbf{Cloud \& DevOps}{: Docker, Kubernetes, AWS, Git}
+    }}
+\end{itemize}
+\vspace{-8pt}
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Your Job Title}{Mon YYYY -- Present}
+      {Company Name (Location)}{}
+      \resumeItemListStart
+        \resumeItem{Accomplishment with impact and the technology used.}
+        \resumeItem{Another accomplishment — keep bullets outcome-oriented.}
+        \resumeItem{A third bullet the tailor can reorder for relevance.}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+    \resumeSubHeadingListStart
+      \resumeProjectHeading
+          {\textbf{Project Name} $|$ \emph{Tech, Stack, Used}}{}
+          \resumeItemListStart
+            \resumeItem{What you built and the problem it solved.}
+            \resumeItem{A notable technical detail or result.}
+          \resumeItemListEnd
+    \resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Your University}{YYYY -- YYYY}
+      {B.Tech in Computer Science and Engineering}{CGPA/GPA}
+  \resumeSubHeadingListEnd
+
+\end{document}
