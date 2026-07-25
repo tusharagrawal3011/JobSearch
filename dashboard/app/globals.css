@@ -75,6 +75,9 @@ h1 { font-size: 22px; margin: 0 0 4px; }
 .tl-item { font-size: 12.5px; color: var(--muted); }
 .tl-item .tl-date { font-family: "SF Mono", Consolas, monospace; font-size: 11px; color: var(--muted); margin-right: 8px; }
 .action-banner { background: #2a2205; border: 1px solid #5c4a12; color: #f4b45f; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; }
+.gmail-status { margin-top: 18px; font-size: 11.5px; color: var(--amber); background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; line-height: 1.4; }
+.gmail-status span { display: block; color: var(--muted); margin-top: 3px; font-size: 11px; }
+.gmail-status.ok { color: var(--green); }
 
 button {
   background: var(--accent); color: white; border: none; border-radius: 7px;
