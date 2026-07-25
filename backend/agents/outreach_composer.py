@@ -64,9 +64,11 @@ def compose_for_contact(contact_id: int, create_gmail_draft: bool = True) -> dic
     gmail_draft_id = None
     note = ""
 
-    # Email draft -> Gmail draft (never send). Only if we can infer a to-address; otherwise
-    # store the body and let Tushar add the recipient in Gmail.
-    if create_gmail_draft:
+    # Email draft -> Gmail draft (never send). Gmail is optional: if it isn't connected the
+    # drafted email text is still saved for the user to copy/send manually.
+    if create_gmail_draft and not gmail.is_configured():
+        note = "Gmail not connected — email text saved; connect Gmail to auto-create drafts."
+    elif create_gmail_draft:
         try:
             to = _guess_email(contact) or config.OWNER_EMAIL  # self-draft if unknown
             gmail_draft_id = gmail.create_draft(to, em.get("subject", ""), em.get("body", ""))

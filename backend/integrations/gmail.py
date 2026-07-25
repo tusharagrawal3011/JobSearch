@@ -14,6 +14,13 @@ from typing import Optional
 from backend import config
 
 
+def is_configured() -> bool:
+    """True if Gmail can be used without prompting for interactive OAuth — i.e. a cached
+    token exists, or an OAuth client secret is present to run consent once. When this is
+    False, Gmail-dependent agents skip gracefully instead of launching a browser flow."""
+    return config.GMAIL_TOKEN_JSON.exists() or config.GMAIL_CREDENTIALS_JSON.exists()
+
+
 def _service():
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials

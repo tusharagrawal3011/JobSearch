@@ -286,6 +286,8 @@ def _track(conn, msg, require_strong: bool) -> str:
 
 
 def run(max_results: int = 300) -> dict:
+    if not gmail.is_configured():
+        return {"agent": AGENT, "ok": True, "skipped": "Gmail not connected"}
     try:
         confirms = gmail.search_messages(CONFIRMATION_Q, max_results)
         statuses = gmail.search_messages(STATUS_Q, max_results)

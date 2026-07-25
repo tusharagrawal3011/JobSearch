@@ -234,6 +234,14 @@ def tracker_update(tracked_id: int, body: TrackerUpdate):
     return application_tracker.update_entry(tracked_id, status=body.status, hidden=body.hidden)
 
 
+@app.get("/api/gmail/status")
+def gmail_status():
+    """Whether Gmail is connected. Gmail is optional — email parsing, the application
+    tracker, and auto-created outreach drafts require it; discovery and tailoring don't."""
+    from backend.integrations import gmail
+    return {"connected": gmail.is_configured()}
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "db": str(config.DB_PATH)}
