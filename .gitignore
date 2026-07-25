@@ -1,0 +1,49 @@
+# ---- Secrets & credentials (NEVER commit) ----
+.env
+.env.local
+.env.*.local
+!.env.example
+dashboard/.env.local
+!dashboard/.env.local.example
+credentials.json
+credentials*.json
+token.json
+token*.json
+client_secret*.json
+
+# ---- Personal data ----
+# Your real resume sources/outputs (the *.sample.tex template IS published)
+resume_go.tex
+resume_node.tex
+resume_*.pdf
+*.pdf
+company_tracker.xlsx
+TAresume.txt
+
+# ---- Databases & runtime state (contains your applications/jobs) ----
+*.db
+*.sqlite
+*.sqlite3
+langgraph_checkpoints.sqlite
+output/
+
+# ---- Python ----
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# ---- Node / Next.js ----
+dashboard/node_modules/
+dashboard/.next/
+dashboard/out/
+node_modules/
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

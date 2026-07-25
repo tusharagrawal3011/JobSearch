@@ -1,0 +1,40 @@
+# Core orchestration — LangChain + LangGraph
+langchain>=0.3.0
+langchain-core>=0.3.0
+langgraph>=0.2.0
+langgraph-checkpoint-sqlite>=2.0.0
+
+# LLM providers via LangChain — ordered fallback chain (default: ollama -> gemini).
+langchain-ollama>=0.2.0          # local, free (primary by default)
+langchain-google-genai>=2.0.0    # Gemini (fallback); google-genai kept for Search grounding
+google-genai>=1.0.0
+# Optional additional providers — install only if you add them to LLM_CHAIN:
+# langchain-anthropic>=0.2.0
+# langchain-openai>=0.2.0        # also covers OpenAI-compatible endpoints (Groq, Together, vLLM)
+
+# Browser automation (headed)
+playwright>=1.48.0
+
+# Google / Gmail API
+google-api-python-client>=2.140.0
+google-auth-httplib2>=0.2.0
+google-auth-oauthlib>=1.2.0
+
+# Local API layer for the dashboard
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# Seed loading + parsing
+openpyxl>=3.1.0
+beautifulsoup4>=4.12.0
+lxml>=5.3.0
+
+# Web search / fetch for contact discovery
+httpx>=0.27.0
+
+# Resume text extraction from base PDFs (fallback when no .tex source)
+pypdf>=5.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.9.0
