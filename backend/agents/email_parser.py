@@ -9,7 +9,7 @@ unverified company if needed so the ATS detector can resolve it later).
 from __future__ import annotations
 
 from backend import config
-from backend.db.database import get_conn, log_run, now_iso
+from backend.db.database import get_conn, log_run, now_iso, stable_id
 from backend.integrations import gmail
 from backend.llm import claude
 
@@ -126,7 +126,7 @@ def run(window_hours: int | None = None) -> dict:
                     if not j.get("title") or not j.get("url"):
                         continue
                     company_id = _resolve_company_id(conn, j.get("company", "Unknown"))
-                    ext = f"{source}:{msg['id']}:{abs(hash(j['url'])) % 10**8}"
+                    ext = f"{source}:{msg['id']}:{stable_id(j['url'])}"
                     try:
                         cur = conn.execute(
                             """INSERT OR IGNORE INTO jobs
