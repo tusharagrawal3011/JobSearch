@@ -97,9 +97,11 @@ def render(job_id: int, track: str, tailored_tex: Optional[str]) -> dict:
 
     try:
         for _ in range(2):  # two passes for references/layout
+            # -no-shell-escape hardens against a malicious \write18 in a crafted .tex
+            # (the diff is human-approved, but defense-in-depth against prompt injection).
             subprocess.run(
-                [pdflatex, "-interaction=nonstopmode", "-output-directory",
-                 str(config.RESUME_OUTPUT_DIR), str(out_tex)],
+                [pdflatex, "-no-shell-escape", "-interaction=nonstopmode",
+                 "-output-directory", str(config.RESUME_OUTPUT_DIR), str(out_tex)],
                 check=True, capture_output=True, timeout=120,
             )
         return {"pdf_path": str(out_pdf), "tex_path": str(out_tex), "mode": "pdflatex",

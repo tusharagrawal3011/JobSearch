@@ -5,6 +5,7 @@ Reporter can show what ran, whether validation passed, and any error text.
 """
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -18,6 +19,14 @@ SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def stable_id(*parts: str) -> str:
+    """Deterministic short id from the given parts. Use this instead of the builtin
+    hash() for dedup keys — hash() is randomized per process (PYTHONHASHSEED), so the
+    same input yields different values across runs and breaks INSERT OR IGNORE dedup."""
+    joined = "|".join(str(p) for p in parts)
+    return hashlib.sha1(joined.encode("utf-8")).hexdigest()[:12]
 
 
 def connect(db_path: Optional[Path] = None) -> sqlite3.Connection:

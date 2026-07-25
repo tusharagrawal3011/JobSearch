@@ -13,7 +13,7 @@ from __future__ import annotations
 from urllib.parse import urljoin, urlparse
 
 from backend import config
-from backend.db.database import get_conn, log_run, now_iso
+from backend.db.database import get_conn, log_run, now_iso, stable_id
 from backend.llm import client
 
 AGENT = "career_reader"
@@ -117,7 +117,7 @@ def scout_company(company_id: int, headless: bool = True) -> dict:
         for j in jobs:
             if not j.get("title"):
                 continue
-            ext = f"career:{company_id}:{abs(hash(j.get('url') or j['title'])) % 10**8}"
+            ext = f"career:{company_id}:{stable_id(j.get('url') or j['title'])}"
             cur = conn.execute(
                 """INSERT OR IGNORE INTO jobs
                    (company_id, external_id, title, jd_text, jd_url, location, discovered_at, source, status)

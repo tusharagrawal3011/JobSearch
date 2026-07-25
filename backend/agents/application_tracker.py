@@ -352,6 +352,8 @@ def update_entry(tracked_id: int, status: str | None = None, hidden: bool | None
         return {"ok": False, "error": "nothing to update"}
     params.append(tracked_id)
     with get_conn() as conn:
+        # `sets` contains only hardcoded fragments ("status=?", "hidden=?", ...); every value
+        # is bound via `params`, so this f-string is not SQL-injectable.
         conn.execute(f"UPDATE tracked_applications SET {', '.join(sets)} WHERE id=?", params)
     return {"ok": True, "id": tracked_id, "status": status, "hidden": hidden}
 
