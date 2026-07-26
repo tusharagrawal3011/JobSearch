@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   keywords     TEXT,
   seniority    TEXT,
   discovered_at TEXT,
-  source       TEXT CHECK(source IN ('ats_api','naukri_alert','indeed_alert','cutshort_alert')) DEFAULT 'ats_api',
+  source       TEXT DEFAULT 'ats_api',   -- ats_api | *_alert | remoteok | remotive | arbeitnow | career_page ... (open set)
   status       TEXT CHECK(status IN ('new','analyzed','tailoring','ready_to_apply','applied','flagged','skipped')) DEFAULT 'new',
   flag_reason  TEXT,
   UNIQUE(company_id, external_id)

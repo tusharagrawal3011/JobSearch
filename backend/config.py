@@ -132,6 +132,8 @@ def _csv(name: str, default: str) -> list[str]:
 KEYWORD_FILTERS = _csv("KEYWORD_FILTERS", "go,golang,node,backend,sde,agentic,llm")
 # Locations you'll consider (matched against posting location; 'remote' always allowed).
 LOCATION_FILTERS = _csv("LOCATION_FILTERS", "bengaluru,bangalore,hyderabad,pune,remote,india")
+# Remote job boards (official public APIs) to poll. Options: remoteok, remotive, arbeitnow.
+REMOTE_BOARDS = _csv("REMOTE_BOARDS", "remoteok,remotive,arbeitnow")
 
 
 def ensure_dirs() -> None:

@@ -137,6 +137,40 @@ def test_looks_like_question():
     assert _looks_like_question("Middle name") is False
 
 
+# ---------------- Remote boards ----------------
+
+def test_remote_board_parsers():
+    from backend.agents import remote_boards
+    # RemoteOK: first element is a legal notice (no 'position') -> skipped
+    rok = remote_boards._parse_remoteok([
+        {"legal": "notice"},
+        {"id": "1", "position": "Backend Engineer", "company": "Acme",
+         "location": "Remote", "url": "http://x", "description": "<p>Go</p>"}])
+    assert len(rok) == 1 and rok[0]["title"] == "Backend Engineer" and rok[0]["company"] == "Acme"
+    assert "Go" in rok[0]["jd_text"] and "<p>" not in rok[0]["jd_text"]      # html stripped
+
+    rmv = remote_boards._parse_remotive({"jobs": [
+        {"id": 2, "title": "Node Dev", "company_name": "Beta",
+         "candidate_required_location": "India", "url": "http://y", "description": "<b>node</b>"}]})
+    assert len(rmv) == 1 and rmv[0]["location"] == "India"
+
+    arb = remote_boards._parse_arbeitnow({"data": [
+        {"slug": "s1", "title": "SDE", "company_name": "Gamma", "location": "",
+         "remote": True, "url": "http://z", "description": "x"}]})
+    assert len(arb) == 1 and arb[0]["location"] == "Remote"                  # remote flag -> "Remote"
+
+
+def test_remote_eligibility_gate():
+    from backend.agents.remote_boards import _remote_eligible
+    assert _remote_eligible("") is True                    # unrestricted
+    assert _remote_eligible("Anywhere") is True
+    assert _remote_eligible("India") is True
+    assert _remote_eligible("Americas, Europe, Asia") is True   # includes Asia
+    assert _remote_eligible("Bengaluru") is True           # a target location
+    assert _remote_eligible("Americas, Europe") is False   # region-locked, no India/Asia
+    assert _remote_eligible("USA only") is False
+
+
 def test_ats_detect_from_url_parses_known_hosts():
     """URL parsing picks the right provider/slug (regex only; probing is skipped here)."""
     import re
