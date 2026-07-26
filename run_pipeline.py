@@ -39,8 +39,9 @@ def cmd_init(verify: bool) -> None:
 
 
 def cmd_discover() -> None:
-    from backend.agents import email_parser, job_discovery
+    from backend.agents import email_parser, job_discovery, remote_boards
     _print("job_discovery", job_discovery.run())
+    _print("remote_boards", remote_boards.run())
     _print("email_parser", email_parser.run())
 
 
