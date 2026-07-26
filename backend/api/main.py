@@ -203,6 +203,12 @@ def digest():
     return daily_reporter.summary()
 
 
+@app.get("/api/insights")
+def insights():
+    from backend.agents import insights as ins
+    return ins.compute()
+
+
 # ---------------- 7. Application tracker (from Gmail) ----------------
 
 @app.get("/api/tracker")
