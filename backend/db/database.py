@@ -82,12 +82,43 @@ def _relax_ats_check(conn: sqlite3.Connection) -> None:
     )
 
 
+def _relax_jobs_source_check(conn: sqlite3.Connection) -> None:
+    """Older DBs pin jobs.source to 4 values. We now ingest from an open set of sources
+    (remote boards, career pages, more alert domains), so drop the CHECK. Ids are preserved
+    so resumes.job_id / applications.job_id stay valid."""
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='jobs'").fetchone()
+    if not row or "CHECK(source" not in row[0]:
+        return
+    conn.executescript(
+        """
+        PRAGMA foreign_keys=OFF;
+        CREATE TABLE jobs_new (
+          id INTEGER PRIMARY KEY, company_id INTEGER REFERENCES companies(id), external_id TEXT,
+          title TEXT, jd_text TEXT, jd_url TEXT, location TEXT,
+          stack_guess TEXT CHECK(stack_guess IN ('go','node','ambiguous','other')),
+          keywords TEXT, seniority TEXT, discovered_at TEXT, source TEXT DEFAULT 'ats_api',
+          status TEXT CHECK(status IN ('new','analyzed','tailoring','ready_to_apply','applied','flagged','skipped')) DEFAULT 'new',
+          flag_reason TEXT, UNIQUE(company_id, external_id)
+        );
+        INSERT INTO jobs_new SELECT id,company_id,external_id,title,jd_text,jd_url,location,
+          stack_guess,keywords,seniority,discovered_at,source,status,flag_reason FROM jobs;
+        DROP TABLE jobs;
+        ALTER TABLE jobs_new RENAME TO jobs;
+        CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+        CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_id);
+        PRAGMA foreign_keys=ON;
+        """
+    )
+
+
 def init_db(db_path: Optional[Path] = None) -> None:
     """Create all tables (idempotent) and apply migrations."""
     schema = SCHEMA_PATH.read_text(encoding="utf-8")
     with get_conn(db_path) as conn:
         conn.executescript(schema)
         _relax_ats_check(conn)
+        _relax_jobs_source_check(conn)
         for stmt in _MIGRATIONS:
             try:
                 conn.execute(stmt)
@@ -113,3 +144,18 @@ def log_run(
 
 def dict_rows(cur: sqlite3.Cursor) -> list[dict[str, Any]]:
     return [dict(r) for r in cur.fetchall()]
+
+
+def resolve_company_by_name(conn: sqlite3.Connection, name: str) -> int:
+    """Return the company id for `name`, creating a lightweight 'unverified' company if it
+    doesn't exist yet (so the ATS detector can try to resolve it later)."""
+    name = (name or "Unknown").strip()
+    row = conn.execute("SELECT id FROM companies WHERE lower(name)=lower(?)", (name,)).fetchone()
+    if row:
+        return row["id"]
+    cur = conn.execute(
+        """INSERT INTO companies (name, ats_type, priority, notes, added_at)
+           VALUES (?, 'unverified', 'medium', 'Auto-created from a job source', ?)""",
+        (name, now_iso()),
+    )
+    return cur.lastrowid
