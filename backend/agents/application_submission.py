@@ -195,8 +195,90 @@ def _upload_resume(page, pdf_path: str) -> None:
         pass
 
 
+_Q_HINTS = ("experience", "years", "ctc", "notice", "authorization", "why", "salary",
+            "relocate", "visa", "sponsor", "compensation", "availability", "expected",
+            "current", "willing", "how many", "do you", "are you", "have you")
+
+
+def _looks_like_question(text: str) -> bool:
+    low = text.lower()
+    return "?" in text or any(w in low for w in _Q_HINTS)
+
+
+def _control_for_label(page, label_el):
+    """Identify the form control a question label drives.
+    Returns (kind, data): 'text'->el, 'textarea'->el, 'select'->(el, options),
+    'radio'->[(el, option_text), ...], 'checkbox'->el, or (None, None)."""
+    try:
+        el = None
+        for_id = label_el.get_attribute("for")
+        if for_id:
+            el = page.query_selector(f'[id="{for_id}"]')
+        if el is None:                                  # control nested in the label
+            el = label_el.query_selector("input, select, textarea")
+        if el is None:
+            return None, None
+        tag = el.evaluate("e => e.tagName.toLowerCase()")
+        if tag == "textarea":
+            return "textarea", el
+        if tag == "select":
+            opts = [o.inner_text().strip() for o in el.query_selector_all("option")
+                    if o.inner_text().strip()]
+            return "select", (el, opts)
+        typ = (el.get_attribute("type") or "text").lower()
+        if typ == "checkbox":
+            return "checkbox", el
+        if typ == "radio":
+            name = el.get_attribute("name")
+            radios = page.query_selector_all(f'input[type="radio"][name="{name}"]') if name else [el]
+            group = [(r, _radio_label(page, r)) for r in radios]
+            return "radio", [(r, t) for r, t in group if t]
+        return "text", el
+    except Exception:  # noqa: BLE001
+        return None, None
+
+
+def _radio_label(page, radio_el) -> str:
+    try:
+        rid = radio_el.get_attribute("id")
+        if rid:
+            lbl = page.query_selector(f'label[for="{rid}"]')
+            if lbl:
+                return (lbl.inner_text() or "").strip()
+        return (radio_el.get_attribute("value") or radio_el.get_attribute("aria-label") or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _fill_control(kind, data, answer: str) -> bool:
+    """Fill the resolved answer into the control, choosing the right option for
+    dropdowns/radios. Returns True if it filled something."""
+    try:
+        if kind in ("text", "textarea"):
+            data.fill(answer)
+            return True
+        if kind == "select":
+            el, opts = data
+            opt = screening.pick_option(answer, opts)
+            if opt:
+                el.select_option(label=opt)
+                return True
+        elif kind == "radio":
+            opt = screening.pick_option(answer, [t for _, t in data])
+            if opt:
+                for r, t in data:
+                    if t == opt:
+                        r.check()
+                        return True
+    except Exception:  # noqa: BLE001
+        pass
+    return False
+
+
 def _handle_screening(page, track: str) -> list[str]:
-    """Match visible custom questions to the bank; fill matches, return unmatched as gaps."""
+    """Fill custom questions from the answer bank across text/dropdown/radio controls
+    (semantic-matched when wording differs); unmatched questions become gaps. Checkboxes
+    (often consent/legal) are left for the human. Never guesses an answer."""
     gaps: list[str] = []
     try:
         labels = page.query_selector_all("label")
@@ -211,34 +293,19 @@ def _handle_screening(page, track: str) -> list[str]:
                 continue
             if not text or len(text) < 8:
                 continue
-            low = text.lower()
-            if any(k in low for k in _CONTACT_LABELS):  # already handled as contact
+            if any(k in text.lower() for k in _CONTACT_LABELS):   # handled as contact already
                 continue
-            answer = screening.match_answer(conn, text, track)
-            if answer:
-                _fill_associated_input(page, lab, answer)
-            elif "?" in text or any(w in low for w in
-                                    ("experience", "years", "ctc", "notice", "authorization",
-                                     "why", "salary", "relocate", "visa", "sponsor")):
-                gaps.append(text)
-    # de-dupe preserving order
+            kind, data = _control_for_label(page, lab)
+            if kind == "checkbox":                                # leave consent to the human
+                continue
+            structured = kind in ("select", "radio")
+            if not (structured or _looks_like_question(text)):    # skip decorative labels (no LLM spam)
+                continue
+            answer = screening.resolve_answer(conn, text, track)
+            if answer and kind and _fill_control(kind, data, answer):
+                continue
+            gaps.append(text)                                     # unanswered / unfillable -> flag
     return list(dict.fromkeys(gaps))
-
-
-def _fill_associated_input(page, label_el, value: str) -> None:
-    try:
-        for_id = label_el.get_attribute("for")
-        if for_id:
-            el = page.query_selector(f"#{for_id}")
-            if el:
-                el.fill(value)
-                return
-        # Textarea/input inside or right after the label
-        el = label_el.query_selector("input, textarea")
-        if el:
-            el.fill(value)
-    except Exception:  # noqa: BLE001
-        pass
 
 
 # ---------------- Human-confirmed submission logging ----------------
