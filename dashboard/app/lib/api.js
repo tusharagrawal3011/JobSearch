@@ -10,8 +10,15 @@ async function req(path, opts = {}) {
   return res.json();
 }
 
+async function upload(path, formData) {
+  const res = await fetch(`${BASE}${path}`, { method: "POST", body: formData, cache: "no-store" });
+  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  return res.json();
+}
+
 export const api = {
   base: BASE,
   get: (p) => req(p),
   post: (p, body) => req(p, { method: "POST", body: JSON.stringify(body || {}) }),
+  upload,
 };
