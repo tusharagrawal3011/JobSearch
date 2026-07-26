@@ -317,3 +317,39 @@ def test_ats_detect_from_url_parses_known_hosts():
     # slug variants are generated deterministically
     variants = detector.slug_variants("GoTo Group")
     assert "gotogroup" in variants
+
+
+# ---------------- Profile (DB overlays .env) ----------------
+
+def test_profile_defaults_to_env_then_db_overlays(tmp_path, monkeypatch):
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    from backend import profile
+    # Fresh DB: not set yet, falls back to config env defaults.
+    assert profile.is_set() is False
+    assert profile.get()["name"] == config.OWNER_NAME
+    # Save a partial profile: those fields win, the rest still fall back to env.
+    profile.save({"name": "Ada Lovelace", "email": "ada@calc.dev"})
+    assert profile.is_set() is True
+    eff = profile.get()
+    assert eff["name"] == "Ada Lovelace" and eff["email"] == "ada@calc.dev"
+    assert eff["location"] == config.OWNER_LOCATION           # untouched -> env default
+    # Blank values do not clobber the effective value (env default shows through).
+    profile.save({"name": "Ada Lovelace", "phone": ""})
+    assert profile.get()["phone"] == config.OWNER_PHONE
+
+
+def test_profile_feeds_agents_at_call_time(tmp_path, monkeypatch):
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    from backend import profile
+    profile.save({"name": "Grace Hopper", "profile_summary": "Compiler pioneer"})
+    # Cover-letter + reminder system prompts are built from the effective profile at call time.
+    from backend.agents import cover_letter, reminders
+    assert "Grace Hopper" in cover_letter._system()
+    assert "Compiler pioneer" in cover_letter._system()
+    assert "Grace Hopper" in reminders._system()
