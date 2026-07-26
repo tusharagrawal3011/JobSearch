@@ -8,6 +8,7 @@ basis are returned separately as "add only if true", so the résumé stays hones
 from __future__ import annotations
 
 import json
+import re
 
 from backend.db.database import get_conn, log_run, now_iso
 from backend.llm import client
@@ -40,6 +41,78 @@ _SYSTEM_OPT = (
 
 def _track(job: dict) -> str:
     return TRACK_MAP.get(job.get("stack_guess") or "ambiguous", "go")
+
+
+# ---------------- Cheap heuristic fit (instant, no LLM) — for ranking everything ----------------
+
+_TOKEN = re.compile(r"[a-z0-9+#.]+")
+
+
+def _tokens(text: str) -> set[str]:
+    return {t for t in _TOKEN.findall((text or "").lower()) if len(t) > 1}
+
+
+_RESUME_TOKENS: dict[str, set[str]] = {}
+
+
+def resume_tokens(track: str) -> set[str]:
+    """Token set of the base résumé for a track (cached per process)."""
+    if track not in _RESUME_TOKENS:
+        _RESUME_TOKENS[track] = _tokens(latex.base_resume_text(track))
+    return _RESUME_TOKENS[track]
+
+
+def heuristic_fit(job_keywords_csv: str, track: str) -> int:
+    """Rough 0-100 fit from overlap of the JD's extracted keywords with the résumé's tokens.
+    Instant and free — used to rank jobs before (or without) an LLM score."""
+    kws = [k.strip().lower() for k in (job_keywords_csv or "").split(",") if k.strip()]
+    if not kws:
+        return 0
+    rtok = resume_tokens(track)
+    hits = sum(1 for k in kws if any(part in rtok for part in _TOKEN.findall(k)))
+    return round(100 * hits / len(kws))
+
+
+def clear_cache() -> None:
+    _RESUME_TOKENS.clear()
+
+
+def rank(limit: int = 100) -> list[dict]:
+    """Analyzed jobs ranked by best available fit score: the cached LLM score if present,
+    otherwise the instant heuristic. Best matches first."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT j.id AS job_id, j.title, j.stack_guess, j.keywords, j.seniority, j.status,
+                      co.name AS company, m.score AS llm_score
+               FROM jobs j JOIN companies co ON co.id=j.company_id
+               LEFT JOIN jd_match m ON m.job_id=j.id
+               WHERE j.status IN ('analyzed','tailoring','ready_to_apply')
+                     AND length(j.jd_text) > 100""").fetchall()
+    out = []
+    for r in rows:
+        r = dict(r)
+        track = _track(r)
+        if r["llm_score"] is not None:
+            r["score"], r["score_type"] = int(r["llm_score"]), "ai"
+        else:
+            r["score"], r["score_type"] = heuristic_fit(r["keywords"], track), "heuristic"
+        r.pop("llm_score", None)
+        out.append(r)
+    out.sort(key=lambda x: (x["score_type"] != "ai", -x["score"]))  # AI-scored first, then by score
+    return out[:limit]
+
+
+def score_batch(limit: int = 20) -> dict:
+    """LLM-score the top unscored analyzed jobs (by heuristic), caching each result.
+    Keeps cost bounded — scores the most promising `limit` jobs per call."""
+    ranked = [j for j in rank(500) if j["score_type"] == "heuristic"]
+    ranked.sort(key=lambda x: -x["score"])
+    scored = 0
+    for j in ranked[:limit]:
+        res = score(j["job_id"])
+        if res.get("score") is not None and not res.get("error"):
+            scored += 1
+    return {"agent": AGENT, "ok": True, "scored": scored, "remaining_unscored": max(0, len(ranked) - scored)}
 
 
 def score(job_id: int, force: bool = False) -> dict:
