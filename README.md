@@ -132,7 +132,7 @@ python run_pipeline.py                # full run: discover → analyze → tailo
 
 ### 7. Open the dashboard (two terminals)
 ```bash
-uvicorn backend.api.main:app --host 127.0.0.1 --port 8000   # terminal 1: API
+uvicorn backend.api.main:app --host 127.0.0.1 --port 8010   # terminal 1: API
 cd dashboard && npm run dev                                  # terminal 2: dashboard → localhost:3000
 ```
 
