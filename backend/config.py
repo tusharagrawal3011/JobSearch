@@ -123,7 +123,7 @@ PLAYWRIGHT_HEADED = os.getenv("PLAYWRIGHT_HEADED", "1") == "1"
 
 # ---- Dashboard API ----
 API_HOST = os.getenv("API_HOST", "127.0.0.1")
-API_PORT = int(os.getenv("API_PORT", "8000"))
+API_PORT = int(os.getenv("API_PORT", "8010"))
 
 # ---- Seed ----
 COMPANY_TRACKER_XLSX = _path("COMPANY_TRACKER_XLSX", "company_tracker.xlsx")
