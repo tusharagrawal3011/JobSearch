@@ -339,6 +339,31 @@ def match_optimize(job_id: int, body: OptimizeReq):
     return resume_match.optimize(job_id, body.keywords)
 
 
+# ---------------- Cover letters ----------------
+
+@app.get("/api/cover-letter/{job_id}")
+def cover_letter_get(job_id: int):
+    from backend.agents import cover_letter
+    return cover_letter.get(job_id) or {"job_id": job_id, "body": "", "subject": ""}
+
+
+@app.post("/api/cover-letter/{job_id}/generate")
+def cover_letter_generate(job_id: int, force: bool = False):
+    from backend.agents import cover_letter
+    return cover_letter.generate(job_id, force=force)
+
+
+class CoverLetterSave(BaseModel):
+    subject: str = ""
+    body: str = ""
+
+
+@app.post("/api/cover-letter/{job_id}/save")
+def cover_letter_save(job_id: int, body: CoverLetterSave):
+    from backend.agents import cover_letter
+    return cover_letter.save(job_id, body.subject, body.body)
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "db": str(config.DB_PATH)}

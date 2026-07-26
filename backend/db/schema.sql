@@ -60,6 +60,16 @@ CREATE TABLE IF NOT EXISTS resumes (
   reviewed_at    TEXT
 );
 
+-- Tailored cover letters per job (generated from the JD + résumé; honest, editable).
+CREATE TABLE IF NOT EXISTS cover_letters (
+  id          INTEGER PRIMARY KEY,
+  job_id      INTEGER UNIQUE REFERENCES jobs(id),
+  subject     TEXT,
+  body        TEXT,
+  status      TEXT DEFAULT 'draft',   -- draft | edited
+  created_at  TEXT
+);
+
 -- Cached résumé↔JD match results (Simplify-style score + keyword gaps), per job.
 CREATE TABLE IF NOT EXISTS jd_match (
   id           INTEGER PRIMARY KEY,
