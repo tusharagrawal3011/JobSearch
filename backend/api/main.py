@@ -378,6 +378,26 @@ def reminders_followup(tracked_id: int):
     return rem.followup_draft(tracked_id)
 
 
+# ---------------- Interview prep ----------------
+
+@app.get("/api/interview-prep")
+def interview_prep_list():
+    from backend.agents import interview_prep
+    return interview_prep.list_interviews()
+
+
+@app.get("/api/interview-prep/{tracked_id}")
+def interview_prep_get(tracked_id: int):
+    from backend.agents import interview_prep
+    return interview_prep.get(tracked_id) or {"tracked_id": tracked_id, "prep": {}}
+
+
+@app.post("/api/interview-prep/{tracked_id}/generate")
+def interview_prep_generate(tracked_id: int, force: bool = False):
+    from backend.agents import interview_prep
+    return interview_prep.generate(tracked_id, force=force)
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "db": str(config.DB_PATH)}
