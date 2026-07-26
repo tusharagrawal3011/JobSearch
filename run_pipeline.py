@@ -71,6 +71,11 @@ def cmd_tracker() -> None:
     _print("application_tracker", application_tracker.run())
 
 
+def cmd_score(limit: int = 30) -> None:
+    from backend.agents import resume_match
+    _print("resume_match.score_batch", resume_match.score_batch(limit))
+
+
 def cmd_scout(area: str) -> None:
     from backend.agents import area_scout
     _print("area_scout", area_scout.scout_and_add(area))
@@ -79,6 +84,7 @@ def cmd_scout(area: str) -> None:
 def cmd_full() -> None:
     cmd_discover()
     cmd_analyze()
+    cmd_score()        # fit-score the newly analyzed jobs so the queue ranks by match
     cmd_tailor()
     cmd_postapply()
     cmd_tracker()      # refresh application statuses from Gmail
@@ -96,6 +102,7 @@ def main() -> int:
     ap.add_argument("--tailor", action="store_true")
     ap.add_argument("--postapply", action="store_true")
     ap.add_argument("--tracker", action="store_true", help="reconstruct application status from Gmail")
+    ap.add_argument("--score", action="store_true", help="fit-score analyzed jobs (rank by match)")
     ap.add_argument("--scout", type=str, metavar="AREA", help="find + add companies hiring in an area")
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--graph", type=int, metavar="JOB_ID")
@@ -114,7 +121,7 @@ def main() -> int:
 
     ran = False
     for flag, fn in (("discover", cmd_discover), ("analyze", cmd_analyze),
-                     ("tailor", cmd_tailor), ("postapply", cmd_postapply),
+                     ("score", cmd_score), ("tailor", cmd_tailor), ("postapply", cmd_postapply),
                      ("tracker", cmd_tracker), ("report", cmd_report)):
         if getattr(args, flag):
             fn(); ran = True

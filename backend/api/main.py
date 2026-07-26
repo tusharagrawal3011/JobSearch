@@ -310,15 +310,17 @@ def resume_for_job(job_id: int):
 # ---------------- Résumé ↔ JD match ----------------
 
 @app.get("/api/match")
-def match_list():
-    """Jobs with a JD to score against, plus any cached score."""
-    return _rows(
-        """SELECT j.id AS job_id, j.title, j.stack_guess, co.name AS company,
-                  m.score, m.computed_at
-           FROM jobs j JOIN companies co ON co.id=j.company_id
-           LEFT JOIN jd_match m ON m.job_id=j.id
-           WHERE length(j.jd_text) > 100
-           ORDER BY (m.score IS NULL), m.score DESC, j.id DESC LIMIT 200""")
+def match_list(limit: int = 100):
+    """Analyzed jobs ranked by fit — the AI score if computed, else an instant heuristic."""
+    from backend.agents import resume_match
+    return resume_match.rank(limit)
+
+
+@app.post("/api/match/score-batch")
+def match_score_batch(limit: int = 20):
+    """AI-score the top unscored jobs (by heuristic), so the ranking sharpens."""
+    from backend.agents import resume_match
+    return resume_match.score_batch(limit)
 
 
 @app.get("/api/match/{job_id}")
