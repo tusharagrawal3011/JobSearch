@@ -398,6 +398,34 @@ def interview_prep_generate(tracked_id: int, force: bool = False):
     return interview_prep.generate(tracked_id, force=force)
 
 
+# ---------------- Profile / onboarding ----------------
+
+class ProfileSave(BaseModel):
+    name: str = ""
+    first_name: str = ""
+    last_name: str = ""
+    email: str = ""
+    phone: str = ""
+    linkedin: str = ""
+    github: str = ""
+    location: str = ""
+    profile_summary: str = ""
+    keyword_filters: str = ""
+    location_filters: str = ""
+
+
+@app.get("/api/profile")
+def profile_get():
+    from backend import profile
+    return {"profile": profile.get(), "is_set": profile.is_set()}
+
+
+@app.post("/api/profile")
+def profile_save(body: ProfileSave):
+    from backend import profile
+    return profile.save(body.model_dump())
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "db": str(config.DB_PATH)}
