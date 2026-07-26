@@ -218,6 +218,16 @@ def test_resume_match_score_and_cache(tmp_path, monkeypatch):
     assert resume_match.score(1)["score"] == 80 and resume_match.score(1)["cached"] is True
 
 
+def test_heuristic_fit_scoring(monkeypatch):
+    from backend.agents import resume_match
+    monkeypatch.setattr(resume_match, "resume_tokens",
+                        lambda track: {"go", "kubernetes", "docker", "kafka", "redis"})
+    assert resume_match.heuristic_fit("Go, Docker, Kafka", "go") == 100        # all present
+    assert resume_match.heuristic_fit("Go, Rust, Scala", "go") == 33           # 1 of 3
+    assert resume_match.heuristic_fit("Rust, Scala, Elixir", "go") == 0        # none
+    assert resume_match.heuristic_fit("", "go") == 0                           # no keywords
+
+
 def test_resume_match_optimize_is_truthful(tmp_path, monkeypatch):
     from backend import config
     from backend.db import database
