@@ -247,6 +247,27 @@ def test_resume_match_optimize_is_truthful(tmp_path, monkeypatch):
 
 # ---------------- Cover letters ----------------
 
+def test_interview_prep_generate_and_get(tmp_path, monkeypatch):
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    with database.get_conn() as c:
+        c.execute("""INSERT INTO tracked_applications (id,company,role,status,hidden,first_seen,last_update)
+                     VALUES (1,'Acme','Backend Engineer','interview',0,'2026-01-01','2026-01-01')""")
+    from backend.llm import client
+    from backend.agents import interview_prep
+    monkeypatch.setattr(client, "complete_with_web_search", lambda *a, **k: "Acme builds real-time systems.")
+    monkeypatch.setattr(client, "complete_json", lambda *a, **k: {
+        "technical_questions": ["Q1", "Q2"], "behavioral_questions": [], "gap_questions": [],
+        "talking_points": ["Your Go concurrency work"], "questions_to_ask": ["What's the on-call like?"]})
+    assert [i["company"] for i in interview_prep.list_interviews()] == ["Acme"]
+    r = interview_prep.generate(1)
+    assert r["ok"] and r["brief"] == "Acme builds real-time systems."
+    assert r["prep"]["technical_questions"] == ["Q1", "Q2"]
+    assert interview_prep.get(1)["prep"]["talking_points"] == ["Your Go concurrency work"]
+
+
 def test_reminders_classify_action():
     from backend.agents.reminders import classify_action
     from backend import config
