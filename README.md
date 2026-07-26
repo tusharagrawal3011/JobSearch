@@ -27,7 +27,8 @@ Everything runs on **your machine**. Your resume, keys, and application history 
 
 ## Features
 
-- **Discovery** across 7 ATS platforms + your Naukri/Indeed/Cutshort (and any) email alerts
+- **Discovery** across 7 ATS platforms, remote-job-board public APIs (RemoteOK, Remotive,
+  Arbeitnow), and your Naukri/Indeed/Cutshort (and any) email alerts
 - **Area Scout** — web-search any location ("HSR Layout, Bangalore") for companies hiring your
   profile, auto-added with ATS detection
 - **Career-page reader** — for companies with no public API, reads the employer's own careers page
