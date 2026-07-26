@@ -60,6 +60,24 @@ CREATE TABLE IF NOT EXISTS resumes (
   reviewed_at    TEXT
 );
 
+-- The user's profile (identity + search prefs), editable in the UI. Overlays the .env
+-- defaults so a new user can set everything up without touching files. Single row (id=1).
+CREATE TABLE IF NOT EXISTS profile (
+  id               INTEGER PRIMARY KEY CHECK (id = 1),
+  name             TEXT,
+  first_name       TEXT,
+  last_name        TEXT,
+  email            TEXT,
+  phone            TEXT,
+  linkedin         TEXT,
+  github           TEXT,
+  location         TEXT,
+  profile_summary  TEXT,
+  keyword_filters  TEXT,
+  location_filters TEXT,
+  updated_at       TEXT
+);
+
 -- Interview prep per tracked application: company brief + likely questions + talking points.
 CREATE TABLE IF NOT EXISTS interview_prep (
   id          INTEGER PRIMARY KEY,

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 
 const LINKS = [
+  { href: "/profile", label: "Profile", key: null },
   { href: "/tracker", label: "My Applications", key: null },
   { href: "/reminders", label: "Reminders", key: null },
   { href: "/interview-prep", label: "Interview Prep", key: null },
@@ -22,10 +23,12 @@ export default function Nav() {
   const path = usePathname();
   const [counts, setCounts] = useState({});
   const [gmail, setGmail] = useState(null);
+  const [profileSet, setProfileSet] = useState(true);
 
   useEffect(() => {
     api.get("/api/digest").then((d) => setCounts(d.pending || {})).catch(() => {});
     api.get("/api/gmail/status").then((s) => setGmail(s.connected)).catch(() => setGmail(null));
+    api.get("/api/profile").then((p) => setProfileSet(p.is_set)).catch(() => setProfileSet(true));
   }, [path]);
 
   return (
@@ -41,6 +44,13 @@ export default function Nav() {
           </Link>
         ))}
       </nav>
+      {!profileSet && path !== "/profile" && (
+        <Link href="/profile" className="gmail-status" style={{ textDecoration: "none" }}
+          title="Set up your profile so the agent applies and writes as you">
+          ● Finish setup
+          <span>Add your name, contact info and search preferences to get started.</span>
+        </Link>
+      )}
       {gmail === false && (
         <div className="gmail-status" title="Email parsing, the tracker and outreach drafts need Gmail">
           ● Gmail not connected

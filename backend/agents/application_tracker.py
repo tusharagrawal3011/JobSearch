@@ -87,7 +87,8 @@ def _root_company(domain: str) -> str:
 
 
 def _is_own(sender: str) -> bool:
-    return config.OWNER_EMAIL.lower() in (sender or "").lower()
+    from backend import profile
+    return profile.get()["email"].lower() in (sender or "").lower()
 
 
 def classify_status(subject: str, snippet: str) -> str:
