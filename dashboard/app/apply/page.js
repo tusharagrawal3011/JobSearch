@@ -2,6 +2,65 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api";
 
+function CoverLetter({ jobId }) {
+  const [open, setOpen] = useState(false);
+  const [cl, setCl] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function toggle() {
+    const next = !open; setOpen(next);
+    if (next && cl === null) {
+      try { setCl(await api.get(`/api/cover-letter/${jobId}`)); } catch { setCl({ body: "" }); }
+    }
+  }
+  async function gen(force) {
+    setBusy(true);
+    try {
+      const r = await api.post(`/api/cover-letter/${jobId}/generate${force ? "?force=true" : ""}`, {});
+      if (r.error) alert(r.error); else setCl(r);
+    } catch (e) { alert("Error: " + e.message); }
+    setBusy(false);
+  }
+  async function save() {
+    setBusy(true);
+    try { await api.post(`/api/cover-letter/${jobId}/save`, { subject: cl.subject || "", body: cl.body || "" }); }
+    catch (e) { alert("Error: " + e.message); }
+    setBusy(false);
+  }
+  function copy() {
+    navigator.clipboard.writeText(cl.body || ""); setCopied(true); setTimeout(() => setCopied(false), 1200);
+  }
+
+  return (
+    <div style={{ marginTop: 10, borderTop: "1px dashed var(--border)", paddingTop: 10 }}>
+      <button className="ghost" style={{ fontSize: 12, padding: "4px 10px" }} onClick={toggle}>
+        {open ? "Hide cover letter" : "📝 Cover letter"}
+      </button>
+      {open && (
+        <div style={{ marginTop: 10 }}>
+          {!cl || !cl.body ? (
+            <button disabled={busy} onClick={() => gen(false)}>{busy ? "Writing…" : "Generate cover letter"}</button>
+          ) : (
+            <>
+              <label>Subject</label>
+              <input value={cl.subject || ""} onChange={(e) => setCl({ ...cl, subject: e.target.value })} />
+              <label>Letter (editable · grounded in your résumé, no fabrication)</label>
+              <textarea style={{ minHeight: 220 }} value={cl.body || ""} onChange={(e) => setCl({ ...cl, body: e.target.value })} />
+              <div className="actions">
+                <button className="ghost" onClick={copy}>{copied ? "Copied ✓" : "Copy"}</button>
+                <button className="ghost" disabled={busy} onClick={save}>Save edits</button>
+                <button className="ghost" disabled={busy} onClick={() => gen(true)}>{busy ? "…" : "Regenerate"}</button>
+                {cl.status && <span className="small muted" style={{ alignSelf: "center" }}>{cl.status}</span>}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ApplyCard({ job, onDone }) {
   const [busy, setBusy] = useState(false);
   const [ref, setRef] = useState("");
@@ -49,6 +108,7 @@ function ApplyCard({ job, onDone }) {
       <p className="small muted" style={{ marginTop: 8 }}>
         The browser fills every field and stops at review — <strong>you click submit</strong> (Workday included).
       </p>
+      <CoverLetter jobId={job.job_id} />
     </div>
   );
 }
