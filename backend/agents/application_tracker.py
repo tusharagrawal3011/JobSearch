@@ -19,6 +19,7 @@ tracker_volume (batch "you applied for N jobs" counts).
 from __future__ import annotations
 
 import re
+import uuid
 from email.utils import parsedate_to_datetime
 
 from backend import config
@@ -367,3 +368,109 @@ def detail(tracked_id: int) -> dict:
         events = conn.execute(
             "SELECT * FROM tracked_events WHERE tracked_id=? ORDER BY ts DESC", (tracked_id,)).fetchall()
         return {"application": dict(app) if app else None, "events": [dict(e) for e in events]}
+
+
+# ---------------- Manual entry (not everything lands in Gmail) ----------------
+# HRs call, message on LinkedIn/WhatsApp, or you apply somewhere that sends no email. These
+# let the user log those by hand so the tracker — and therefore Insights — stays complete.
+
+def _manual_ts(date: str | None) -> str:
+    """Accept a 'YYYY-MM-DD' (or full ISO) date; default to now. Always returns ISO."""
+    from datetime import datetime
+    if not date:
+        return now_iso()
+    d = str(date).strip()
+    try:
+        return datetime.fromisoformat(d.replace("Z", "+00:00")).isoformat()
+    except (ValueError, TypeError):
+        pass
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d-%m-%Y", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(d, fmt).isoformat()
+        except ValueError:
+            continue
+    return now_iso()
+
+
+def _insert_event(conn, tid, ts, status, subject, note, sender) -> None:
+    conn.execute(
+        """INSERT OR IGNORE INTO tracked_events
+           (tracked_id, ts, status, subject, snippet, sender, gmail_msg_id, manual)
+           VALUES (?,?,?,?,?,?,?,1)""",
+        (tid, ts, status, subject, note, sender, f"manual-{uuid.uuid4().hex}"),
+    )
+
+
+def add_manual(company: str, role: str = "", platform: str = "direct",
+               status: str = "applied", applied_on: str | None = None, note: str = "") -> dict:
+    """Add an application the tracker could never see in Gmail (offline / phone-only / a board
+    that sends no confirmation). If a tracked entry for the same company already exists, this
+    logs an update on it instead of creating a duplicate."""
+    company = (company or "").strip()
+    if not company:
+        return {"ok": False, "error": "company is required"}
+    if status not in STATUS_RANK:
+        return {"ok": False, "error": f"invalid status '{status}'"}
+    ts = _manual_ts(applied_on)
+    key = _norm_key(company)
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM tracked_applications WHERE thread_key=?", (key,)).fetchone()
+        if row:
+            _apply_manual_event(conn, row["id"], note or f"Marked {status}", status, ts)
+            log_run(conn, AGENT, "manual-merge", output_ref=f"id={row['id']} company={company}")
+            return {"ok": True, "id": row["id"], "merged": True,
+                    "note": f"An entry for {company} already existed — logged this as an update on it."}
+        cur = conn.execute(
+            """INSERT INTO tracked_applications
+               (company, role, platform, status, first_seen, last_update, latest_subject,
+                latest_snippet, source_domain, thread_key, needs_action, action_hint, manual_status)
+               VALUES (?,?,?,?,?,?,?,?, 'manual', ?, 0, '', 1)""",
+            (company, role, platform, status, ts, ts,
+             f"Applied (manual): {role or company}", note or "Added by hand", key),
+        )
+        tid = cur.lastrowid
+        _insert_event(conn, tid, ts, status, f"Applied (manual): {role or company}",
+                      note or "Added by hand", "Manual entry")
+        log_run(conn, AGENT, "manual-add", output_ref=f"id={tid} company={company}")
+    return {"ok": True, "id": tid, "merged": False}
+
+
+def _apply_manual_event(conn, tid: int, note: str, status: str | None, ts: str) -> None:
+    """Shared writer: append a manual event and roll the parent forward. A status here is the
+    user's explicit call, so it's pinned (manual_status=1) and clears any pending action flag."""
+    subject = f"Update: {status}" if status else "Note"
+    _insert_event(conn, tid, ts, status, subject, note, "Manual entry")
+    row = conn.execute("SELECT last_update, status FROM tracked_applications WHERE id=?", (tid,)).fetchone()
+    newer = ts >= (row["last_update"] or "")
+    if status:
+        conn.execute(
+            """UPDATE tracked_applications
+               SET status=?, manual_status=1, needs_action=0, action_hint='',
+                   last_update=?, latest_subject=?, latest_snippet=?
+               WHERE id=?""",
+            (status, max(ts, row["last_update"] or ts), subject, note, tid))
+    else:
+        conn.execute(
+            """UPDATE tracked_applications SET last_update=?,
+                   latest_subject=CASE WHEN ? THEN ? ELSE latest_subject END,
+                   latest_snippet=CASE WHEN ? THEN ? ELSE latest_snippet END
+               WHERE id=?""",
+            (max(ts, row["last_update"] or ts), newer, subject, newer, note, tid))
+
+
+def add_event(tracked_id: int, note: str = "", status: str | None = None,
+              on_date: str | None = None) -> dict:
+    """Log a hand-entered update on an existing application (e.g. 'HR called, onsite next week').
+    Optional status change is pinned; the note + date land on the timeline and feed Insights."""
+    if status is not None and status not in STATUS_RANK:
+        return {"ok": False, "error": f"invalid status '{status}'"}
+    if not (note or "").strip() and status is None:
+        return {"ok": False, "error": "add a note or a status"}
+    ts = _manual_ts(on_date)
+    with get_conn() as conn:
+        exists = conn.execute("SELECT 1 FROM tracked_applications WHERE id=?", (tracked_id,)).fetchone()
+        if not exists:
+            return {"ok": False, "error": "application not found"}
+        _apply_manual_event(conn, tracked_id, note.strip() or f"Marked {status}", status, ts)
+        log_run(conn, AGENT, "manual-event", output_ref=f"id={tracked_id} status={status}")
+    return {"ok": True, "id": tracked_id, "status": status, "ts": ts}

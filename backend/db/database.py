@@ -56,6 +56,7 @@ _MIGRATIONS = [
     "ALTER TABLE tracked_applications ADD COLUMN manual_status INTEGER DEFAULT 0",
     "ALTER TABLE companies ADD COLUMN careers_url TEXT",
     "ALTER TABLE resumes ADD COLUMN tex_content TEXT",
+    "ALTER TABLE tracked_events ADD COLUMN manual INTEGER DEFAULT 0",
 ]
 
 

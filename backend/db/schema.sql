@@ -192,7 +192,8 @@ CREATE TABLE IF NOT EXISTS tracked_events (
   subject         TEXT,
   snippet         TEXT,
   sender          TEXT,
-  gmail_msg_id    TEXT UNIQUE
+  gmail_msg_id    TEXT UNIQUE,   -- real Gmail id, or a synthetic 'manual-…' id for hand-logged updates
+  manual          INTEGER DEFAULT 0   -- 1 = logged by the user (phone call, LinkedIn, etc.), not from Gmail
 );
 
 -- Batch "you applied for N jobs" emails (Naukri/Indeed) — volume, not individually trackable.

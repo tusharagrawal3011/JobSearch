@@ -240,6 +240,38 @@ def tracker_update(tracked_id: int, body: TrackerUpdate):
     return application_tracker.update_entry(tracked_id, status=body.status, hidden=body.hidden)
 
 
+class ManualApp(BaseModel):
+    company: str
+    role: str = ""
+    platform: str = "direct"
+    status: str = "applied"
+    applied_on: Optional[str] = None
+    note: str = ""
+
+
+@app.post("/api/tracker/manual")
+def tracker_add_manual(body: ManualApp):
+    """Add an application that never appeared in Gmail (offline / phone-only)."""
+    from backend.agents import application_tracker
+    return application_tracker.add_manual(
+        company=body.company, role=body.role, platform=body.platform,
+        status=body.status, applied_on=body.applied_on, note=body.note)
+
+
+class ManualEvent(BaseModel):
+    note: str = ""
+    status: Optional[str] = None
+    on_date: Optional[str] = None
+
+
+@app.post("/api/tracker/{tracked_id}/event")
+def tracker_add_event(tracked_id: int, body: ManualEvent):
+    """Log a hand-entered update on an application (HR called, LinkedIn message, etc.)."""
+    from backend.agents import application_tracker
+    return application_tracker.add_event(
+        tracked_id, note=body.note, status=body.status, on_date=body.on_date)
+
+
 @app.get("/api/gmail/status")
 def gmail_status():
     """Gmail is optional. `connected` = consent completed (token cached); `credentials` =
