@@ -401,3 +401,60 @@ def test_insights_empty_is_safe():
     assert out["rates"]["response_rate"] == 0.0
     assert out["median_days_to_response"] is None
     assert out["by_month"] == [] and out["by_platform"] == []
+
+
+# ---------------- Manual tracker entry (not everything is in Gmail) ----------------
+
+def test_tracker_add_manual_and_event(tmp_path, monkeypatch):
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    from backend.agents import application_tracker as tr
+
+    # Add a phone-only application: creates the row + an initial timeline event.
+    r = tr.add_manual("Phone Co", role="Backend Engineer", platform="referral",
+                      status="applied", applied_on="2026-06-01", note="Referred by a friend")
+    assert r["ok"] and not r.get("merged")
+    tid = r["id"]
+    d = tr.detail(tid)
+    assert d["application"]["status"] == "applied"
+    assert d["application"]["source_domain"] == "manual"
+    assert d["application"]["manual_status"] == 1        # protected from Gmail overwrite
+    assert len(d["events"]) == 1 and d["events"][0]["manual"] == 1
+
+    # Log a call that moves it to interview, on a later date.
+    e = tr.add_event(tid, note="HR called — onsite scheduled", status="interview", on_date="2026-06-10")
+    assert e["ok"]
+    d = tr.detail(tid)
+    assert d["application"]["status"] == "interview"
+    assert len(d["events"]) == 2
+    assert any("HR called" in (ev["snippet"] or "") for ev in d["events"])
+
+    # A second add_manual for the same company merges instead of duplicating.
+    r2 = tr.add_manual("Phone Co", note="Following up")
+    assert r2["ok"] and r2["merged"] and r2["id"] == tid
+    assert len(tr.detail(tid)["events"]) == 3
+
+
+def test_tracker_manual_validation_and_insights_flow(tmp_path, monkeypatch):
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    from backend.agents import application_tracker as tr
+    from backend.agents import insights
+
+    assert tr.add_manual("")["ok"] is False                       # company required
+    assert tr.add_manual("X", status="banana")["ok"] is False     # bad status
+    assert tr.add_event(999, note="x")["ok"] is False             # unknown application
+    assert tr.add_event(1, note="", status=None)["ok"] is False   # nothing to log
+
+    # A manual application that reaches interview must show up in the funnel.
+    tid = tr.add_manual("Insightful Inc", status="applied", applied_on="2026-05-01")["id"]
+    tr.add_event(tid, note="Recruiter call", status="interview", on_date="2026-05-09")
+    out = insights.compute()
+    funnel = {f["stage"]: f["count"] for f in out["funnel"]}
+    assert funnel["Applied"] == 1 and funnel["Interview"] == 1
+    assert out["rates"]["response_rate"] == 1.0
+    assert out["median_days_to_response"] == 8                     # 05-01 -> 05-09
