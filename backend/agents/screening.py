@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 
 from backend.db.database import get_conn, now_iso
+from backend.llm import client
 
 _STOP = {"the", "a", "an", "of", "for", "your", "you", "do", "have", "with", "in", "on",
          "to", "is", "are", "what", "how", "many", "please", "this", "role", "and", "or"}
@@ -42,6 +43,72 @@ def match_answer(conn, question_text: str, track: str, threshold: float = 0.6) -
         ans = best["answer_go"] if track == "go" else best["answer_node"]
         return ans or None
     return None
+
+
+def _stored_entries(conn, track: str) -> list[tuple[str, str]]:
+    """(question_text, answer) pairs that HAVE an answer for this track."""
+    col = "answer_go" if track == "go" else "answer_node"
+    rows = conn.execute(f"SELECT question_text, {col} AS ans FROM screening_answers").fetchall()
+    return [(r["question_text"], r["ans"]) for r in rows if r["ans"]]
+
+
+def match_answer_semantic(conn, question_text: str, track: str) -> str | None:
+    """LLM fallback when keyword matching misses: decide which stored question asks for the
+    SAME information as this form question, even if the wording differs. Returns its answer."""
+    entries = _stored_entries(conn, track)
+    if not entries:
+        return None
+    listing = "\n".join(f"{i}. {q}" for i, (q, _) in enumerate(entries))
+    try:
+        res = client.complete_json(
+            f"A job application form asks: \"{question_text}\"\n\n"
+            f"Here are questions I have stored answers for:\n{listing}\n\n"
+            "Which stored question (if any) asks for the SAME information? "
+            'Return JSON {"index": <number>} or {"index": null} if none matches.',
+            tier="fast", max_tokens=80,
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    idx = res.get("index") if isinstance(res, dict) else None
+    if isinstance(idx, int) and 0 <= idx < len(entries):
+        return entries[idx][1]
+    return None
+
+
+def resolve_answer(conn, question_text: str, track: str) -> str | None:
+    """Best stored answer for a form question: fast keyword match, then LLM semantic match."""
+    return match_answer(conn, question_text, track) or match_answer_semantic(conn, question_text, track)
+
+
+def _norm(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", (s or "").lower()).strip()
+
+
+def pick_option(answer: str, options: list[str]) -> str | None:
+    """Map a free-text stored answer to the closest option of a <select>/radio group.
+    Tries exact then substring match (no LLM), then an LLM pick as a last resort. Always
+    returns one of `options` verbatim, or None."""
+    if not answer or not options:
+        return None
+    na = _norm(answer)
+    for o in options:                       # exact
+        if _norm(o) == na:
+            return o
+    for o in options:                       # substring either direction
+        no = _norm(o)
+        if no and (no in na or na in no):
+            return o
+    try:                                    # LLM fallback
+        res = client.complete_json(
+            f"My answer: \"{answer}\"\nOptions: {options}\n"
+            "Return JSON {\"option\": \"<the single best-matching option, copied verbatim>\"} "
+            "or {\"option\": null} if none fits.",
+            tier="fast", max_tokens=80,
+        )
+        choice = res.get("option") if isinstance(res, dict) else None
+        return choice if choice in options else None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def record_gap(conn, question_text: str) -> None:
