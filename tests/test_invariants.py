@@ -245,6 +245,33 @@ def test_resume_match_optimize_is_truthful(tmp_path, monkeypatch):
         assert c.execute("SELECT COUNT(*) FROM resumes WHERE job_id=1").fetchone()[0] == 1
 
 
+# ---------------- Cover letters ----------------
+
+def test_cover_letter_clean_text():
+    from backend.agents.cover_letter import clean_text
+    assert clean_text("a—b") == "a - b"              # em dash
+    assert clean_text("I’m") == "I'm"                # curly apostrophe
+    assert clean_text("“hi”…") == '"hi"...'  # curly quotes + ellipsis
+
+
+def test_cover_letter_generate_and_save(tmp_path, monkeypatch):
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    _seed_job(database)
+    from backend.llm import client
+    from backend.agents import cover_letter
+    monkeypatch.setattr(client, "complete_json",
+                        lambda *a, **k: {"subject": "Role — Me", "body": "Dear team… I’m keen."})
+    r = cover_letter.generate(1)
+    assert r["ok"] and "—" not in r["subject"]                  # cleaned
+    assert cover_letter.get(1)["body"] == "Dear team... I'm keen."   # cleaned + stored
+    cover_letter.save(1, "S", "edited body")
+    got = cover_letter.get(1)
+    assert got["body"] == "edited body" and got["status"] == "edited"
+
+
 def test_ats_detect_from_url_parses_known_hosts():
     """URL parsing picks the right provider/slug (regex only; probing is skipped here)."""
     import re
