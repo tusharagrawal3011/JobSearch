@@ -21,6 +21,26 @@ def is_configured() -> bool:
     return config.GMAIL_TOKEN_JSON.exists() or config.GMAIL_CREDENTIALS_JSON.exists()
 
 
+def is_connected() -> bool:
+    """True only once the user has completed consent (a cached token exists)."""
+    return config.GMAIL_TOKEN_JSON.exists()
+
+
+def connect() -> dict:
+    """Run the OAuth consent flow (opens a browser once) and cache the token. Triggered by
+    the dashboard's 'Connect Gmail' button. Requires credentials.json to be present."""
+    if not config.GMAIL_CREDENTIALS_JSON.exists():
+        return {"ok": False, "connected": False,
+                "error": "credentials.json not found — add your Google OAuth client secret "
+                         "(Desktop app) to the project root first."}
+    try:
+        svc = _service()   # opens the consent browser if there's no cached token yet
+        prof = svc.users().getProfile(userId="me").execute()
+        return {"ok": True, "connected": True, "email": prof.get("emailAddress")}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "connected": False, "error": str(e)}
+
+
 def _service():
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials

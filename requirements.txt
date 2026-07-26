@@ -23,6 +23,7 @@ google-auth-oauthlib>=1.2.0
 # Local API layer for the dashboard
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9        # resume file uploads
 
 # Seed loading + parsing
 openpyxl>=3.1.0
