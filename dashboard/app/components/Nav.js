@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 const LINKS = [
   { href: "/tracker", label: "My Applications", key: null },
   { href: "/reminders", label: "Reminders", key: null },
+  { href: "/interview-prep", label: "Interview Prep", key: null },
   { href: "/resumes", label: "Resumes", key: null },
   { href: "/match", label: "JD Match", key: null },
   { href: "/diffs", label: "Diff Approval", key: "resume_diffs" },
