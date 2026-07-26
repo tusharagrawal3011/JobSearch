@@ -60,6 +60,18 @@ CREATE TABLE IF NOT EXISTS resumes (
   reviewed_at    TEXT
 );
 
+-- Cached résumé↔JD match results (Simplify-style score + keyword gaps), per job.
+CREATE TABLE IF NOT EXISTS jd_match (
+  id           INTEGER PRIMARY KEY,
+  job_id       INTEGER UNIQUE REFERENCES jobs(id),
+  track        TEXT,
+  score        INTEGER,
+  matched      TEXT,   -- JSON array of keywords present in the résumé
+  missing      TEXT,   -- JSON array of important JD keywords absent/weak in the résumé
+  summary      TEXT,
+  computed_at  TEXT
+);
+
 CREATE TABLE IF NOT EXISTS applications (
   id                   INTEGER PRIMARY KEY,
   job_id               INTEGER REFERENCES jobs(id),
