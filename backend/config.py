@@ -113,6 +113,7 @@ RESUME_NODE_PDF = _path("RESUME_NODE_PDF", "resume_node.pdf")
 RESUME_GO_TEX = _path("RESUME_GO_TEX", "resume_go.tex")
 RESUME_NODE_TEX = _path("RESUME_NODE_TEX", "resume_node.tex")
 RESUME_OUTPUT_DIR = ROOT / "output" / "resumes"
+RESUME_UPLOAD_DIR = ROOT / "data" / "resumes"   # user-uploaded base resumes (gitignored)
 
 # ---- Playwright ----
 PLAYWRIGHT_HEADED = os.getenv("PLAYWRIGHT_HEADED", "1") == "1"
@@ -138,3 +139,4 @@ REMOTE_BOARDS = _csv("REMOTE_BOARDS", "remoteok,remotive,arbeitnow")
 
 def ensure_dirs() -> None:
     RESUME_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    RESUME_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

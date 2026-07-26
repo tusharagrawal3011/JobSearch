@@ -171,6 +171,25 @@ def test_remote_eligibility_gate():
     assert _remote_eligible("USA only") is False
 
 
+# ---------------- Resume library ----------------
+
+def test_resume_store_roundtrip(tmp_path, monkeypatch):
+    """Upload -> becomes active -> tailor reads it from the DB (isolated temp DB)."""
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    from backend.resume import store, latex
+    assert store.save_base_resume("go", "\\documentclass{article} MY RESUME", None, "r.tex", "Go")["ok"]
+    assert store.get_base_tex("go") == "\\documentclass{article} MY RESUME"
+    assert latex.base_tex_source("go") == "\\documentclass{article} MY RESUME"   # DB preferred
+    bases = store.list_base_resumes()
+    assert len(bases) == 1 and bases[0]["track"] == "go" and bases[0]["active"] == 1
+    # a second upload deactivates the first
+    store.save_base_resume("go", "v2", None, "r2.tex", "Go v2")
+    assert store.get_base_tex("go") == "v2"
+
+
 def test_ats_detect_from_url_parses_known_hosts():
     """URL parsing picks the right provider/slug (regex only; probing is skipped here)."""
     import re

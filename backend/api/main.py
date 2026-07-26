@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -236,10 +236,75 @@ def tracker_update(tracked_id: int, body: TrackerUpdate):
 
 @app.get("/api/gmail/status")
 def gmail_status():
-    """Whether Gmail is connected. Gmail is optional — email parsing, the application
-    tracker, and auto-created outreach drafts require it; discovery and tailoring don't."""
-    from backend.integrations import gmail
-    return {"connected": gmail.is_configured()}
+    """Gmail is optional. `connected` = consent completed (token cached); `credentials` =
+    an OAuth client secret is present so the Connect button can run the consent flow."""
+    return {"connected": gmail.is_connected(),
+            "credentials": config.GMAIL_CREDENTIALS_JSON.exists()}
+
+
+@app.post("/api/gmail/connect")
+def gmail_connect():
+    """Run the one-time OAuth consent (opens a browser). Requires credentials.json."""
+    return gmail.connect()
+
+
+# ---------------- Resume library ----------------
+
+@app.post("/api/resumes/upload")
+async def resumes_upload(track: str = Form(...), label: str = Form(""),
+                         tex: Optional[UploadFile] = File(None),
+                         pdf: Optional[UploadFile] = File(None)):
+    """Upload a base resume (LaTeX .tex and/or .pdf) for a track; becomes the active one."""
+    from backend.resume import store
+    if track not in ("go", "node"):
+        raise HTTPException(400, "track must be 'go' or 'node'")
+    tex_content = (await tex.read()).decode("utf-8", "ignore") if tex else None
+    pdf_bytes = await pdf.read() if pdf else None
+    if not tex_content and not pdf_bytes:
+        raise HTTPException(400, "provide a .tex and/or .pdf file")
+    filename = (tex.filename if tex else "") or (pdf.filename if pdf else "")
+    return store.save_base_resume(track, tex_content, pdf_bytes, filename, label)
+
+
+@app.get("/api/resumes/base")
+def resumes_base():
+    from backend.resume import store
+    return store.list_base_resumes()
+
+
+@app.get("/api/resumes/tailored")
+def resumes_tailored():
+    """Jobs that have a tailored resume, for the per-JD resume viewer."""
+    return _rows(
+        """SELECT j.id AS job_id, j.title, j.stack_guess, co.name AS company,
+                  r.base_track, r.hitl_status,
+                  (r.tex_content IS NOT NULL AND r.tex_content!='') AS has_tailored
+           FROM resumes r JOIN jobs j ON j.id=r.job_id JOIN companies co ON co.id=j.company_id
+           ORDER BY r.id DESC""")
+
+
+@app.get("/api/resumes/job/{job_id}")
+def resume_for_job(job_id: int):
+    """Original (base) vs tailored resume for a job, for side-by-side viewing."""
+    from backend.resume import latex, store
+    with get_conn() as c:
+        job = c.execute("""SELECT j.title, j.stack_guess, co.name AS company
+                           FROM jobs j JOIN companies co ON co.id=j.company_id
+                           WHERE j.id=?""", (job_id,)).fetchone()
+        r = c.execute("""SELECT id, base_track, diff_json, tex_content, hitl_status, final_pdf_path
+                         FROM resumes WHERE job_id=? ORDER BY id DESC LIMIT 1""", (job_id,)).fetchone()
+    if not job:
+        raise HTTPException(404, "job not found")
+    track = (dict(r)["base_track"] if r else None) or "go"
+    return {
+        "job": dict(job),
+        "track": track,
+        "base_tex": latex.base_tex_source(track) or "",
+        "has_uploaded_base": store.get_base_tex(track) is not None,
+        "tailored_tex": (dict(r).get("tex_content") if r else None) or "",
+        "diff": json.loads(dict(r).get("diff_json") or "{}") if r else {},
+        "hitl_status": dict(r).get("hitl_status") if r else None,
+    }
 
 
 @app.get("/api/health")
