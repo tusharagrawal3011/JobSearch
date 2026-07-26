@@ -307,6 +307,36 @@ def resume_for_job(job_id: int):
     }
 
 
+# ---------------- Résumé ↔ JD match ----------------
+
+@app.get("/api/match")
+def match_list():
+    """Jobs with a JD to score against, plus any cached score."""
+    return _rows(
+        """SELECT j.id AS job_id, j.title, j.stack_guess, co.name AS company,
+                  m.score, m.computed_at
+           FROM jobs j JOIN companies co ON co.id=j.company_id
+           LEFT JOIN jd_match m ON m.job_id=j.id
+           WHERE length(j.jd_text) > 100
+           ORDER BY (m.score IS NULL), m.score DESC, j.id DESC LIMIT 200""")
+
+
+@app.get("/api/match/{job_id}")
+def match_score(job_id: int, force: bool = False):
+    from backend.agents import resume_match
+    return resume_match.score(job_id, force=force)
+
+
+class OptimizeReq(BaseModel):
+    keywords: Optional[list[str]] = None
+
+
+@app.post("/api/match/{job_id}/optimize")
+def match_optimize(job_id: int, body: OptimizeReq):
+    from backend.agents import resume_match
+    return resume_match.optimize(job_id, body.keywords)
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "db": str(config.DB_PATH)}
