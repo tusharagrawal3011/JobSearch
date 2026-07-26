@@ -353,3 +353,51 @@ def test_profile_feeds_agents_at_call_time(tmp_path, monkeypatch):
     assert "Grace Hopper" in cover_letter._system()
     assert "Compiler pioneer" in cover_letter._system()
     assert "Grace Hopper" in reminders._system()
+
+
+# ---------------- Insights (funnel analytics) ----------------
+
+def test_insights_analyze_funnel_and_rates():
+    from backend.agents.insights import _analyze
+    apps = [
+        {"id": 1, "status": "offer", "platform": "direct", "first_seen": "2026-01-01T00:00:00+00:00", "last_update": "2026-02-01T00:00:00+00:00"},
+        {"id": 2, "status": "rejected", "platform": "naukri", "first_seen": "2026-01-10T00:00:00+00:00", "last_update": "2026-01-20T00:00:00+00:00"},
+        {"id": 3, "status": "interview", "platform": "direct", "first_seen": "2026-02-05T00:00:00+00:00", "last_update": "2026-02-10T00:00:00+00:00"},
+        {"id": 4, "status": "applied", "platform": "naukri", "first_seen": "2026-02-15T00:00:00+00:00", "last_update": "2026-02-15T00:00:00+00:00"},
+    ]
+    events = [
+        # app1 progressed applied -> interview -> offer
+        {"tracked_id": 1, "ts": "2026-01-08T00:00:00+00:00", "status": "interview"},
+        {"tracked_id": 1, "ts": "2026-01-20T00:00:00+00:00", "status": "offer"},
+        # app2 reached interview, then rejected (rejection must NOT inflate the interview stage falsely,
+        # but the interview it DID reach should count)
+        {"tracked_id": 2, "ts": "2026-01-15T00:00:00+00:00", "status": "interview"},
+        {"tracked_id": 2, "ts": "2026-01-18T00:00:00+00:00", "status": "rejected"},
+        # app3 assessment then interview
+        {"tracked_id": 3, "ts": "2026-02-09T00:00:00+00:00", "status": "interview"},
+        # app4 no events (applied only, no response)
+    ]
+    out = _analyze(apps, events, volume={"naukri": 40})
+    f = {x["stage"]: x["count"] for x in out["funnel"]}
+    assert f["Applied"] == 4
+    assert f["Interview"] == 3          # apps 1,2,3 all reached interview
+    assert f["Offer"] == 1              # only app1
+    assert out["totals"]["responded"] == 3           # apps 1,2,3; app4 silent
+    assert out["rates"]["response_rate"] == 0.75
+    assert out["outcomes"]["no_response"] == 1
+    assert out["outcomes"]["offer"] == 1 and out["outcomes"]["rejected"] == 1
+    assert out["totals"]["bulk_volume"] == 40
+    # median days-to-first-response: app1 7d (01-01->01-08), app2 5d, app3 4d -> median 5
+    assert out["median_days_to_response"] == 5
+    # platform split: direct has 2 apps both responded
+    direct = next(p for p in out["by_platform"] if p["platform"] == "direct")
+    assert direct["total"] == 2 and direct["response_rate"] == 1.0
+
+
+def test_insights_empty_is_safe():
+    from backend.agents.insights import _analyze
+    out = _analyze([], [])
+    assert out["totals"]["tracked"] == 0
+    assert out["rates"]["response_rate"] == 0.0
+    assert out["median_days_to_response"] is None
+    assert out["by_month"] == [] and out["by_platform"] == []
