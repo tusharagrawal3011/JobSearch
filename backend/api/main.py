@@ -416,6 +416,42 @@ def reminders_followup(tracked_id: int):
     return rem.followup_draft(tracked_id)
 
 
+# ---------------- Referrals ----------------
+
+class ReferralFind(BaseModel):
+    company: str
+    role: str = ""
+    tracked_id: Optional[int] = None
+    force: bool = False
+
+
+@app.post("/api/referrals/find")
+def referrals_find(body: ReferralFind):
+    from backend.agents import referral_finder
+    return referral_finder.find(body.company, role=body.role,
+                                tracked_id=body.tracked_id, force=body.force)
+
+
+class ReferralDraft(BaseModel):
+    company: str
+    contact: dict
+    role: str = ""
+    tracked_id: Optional[int] = None
+
+
+@app.post("/api/referrals/draft")
+def referrals_draft(body: ReferralDraft):
+    from backend.agents import referral_finder
+    return referral_finder.draft(body.company, body.contact,
+                                 role=body.role, tracked_id=body.tracked_id)
+
+
+@app.get("/api/referrals")
+def referrals_get(company: str):
+    from backend.agents import referral_finder
+    return referral_finder.get(company) or {"company": company, "contacts": []}
+
+
 # ---------------- Interview prep ----------------
 
 @app.get("/api/interview-prep")

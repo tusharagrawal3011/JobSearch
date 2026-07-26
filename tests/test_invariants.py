@@ -458,3 +458,57 @@ def test_tracker_manual_validation_and_insights_flow(tmp_path, monkeypatch):
     assert funnel["Applied"] == 1 and funnel["Interview"] == 1
     assert out["rates"]["response_rate"] == 1.0
     assert out["median_days_to_response"] == 8                     # 05-01 -> 05-09
+
+
+# ---------------- Referral finder ----------------
+
+def test_referral_clean_contact_normalizes_and_labels():
+    from backend.agents.referral_finder import _clean_contact
+    c = _clean_contact({"name": "Ada L", "seniority": "FOUNDER", "email_status": "weird",
+                        "email": "ada@x.com"})
+    assert c["seniority"] == "founder"          # lowercased, valid
+    assert c["email_status"] == "none"          # invalid status -> safe default
+    # missing keys don't blow up
+    assert _clean_contact({"name": "Bob"})["email"] == ""
+
+
+def test_referral_find_and_draft(tmp_path, monkeypatch):
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    from backend.llm import client
+    from backend.agents import referral_finder as rf
+
+    calls = {"n": 0}
+
+    def fake_search(*a, **k):
+        calls["n"] += 1
+        return ('[{"name":"Jane Founder","title":"CEO","seniority":"founder",'
+                '"why_them":"Leads the team","public_profile_url":"https://x.com/jane",'
+                '"email":"jane@startup.com","email_status":"found","email_note":"",'
+                '"source":"team page"}]')
+    monkeypatch.setattr(client, "complete_with_web_search", fake_search)
+
+    r = rf.find("Startup Co", role="Backend Engineer")
+    assert r["ok"] and not r["cached"] and len(r["contacts"]) == 1
+    assert r["contacts"][0]["name"] == "Jane Founder"
+    # Second call is served from cache — no extra web search.
+    r2 = rf.find("Startup Co")
+    assert r2["cached"] is True and calls["n"] == 1
+
+    # Draft grounds in the profile, cleans unicode, and never sends.
+    from backend.integrations import gmail
+    monkeypatch.setattr(gmail, "is_connected", lambda: False)
+    monkeypatch.setattr(client, "complete_json",
+                        lambda *a, **k: {"subject": "Referral — Backend", "body": "Hi Jane… I’m keen."})
+    d = rf.draft("Startup Co", r["contacts"][0], role="Backend Engineer")
+    assert d["ok"] and d["gmail_draft_id"] is None
+    assert "—" not in d["subject"] and "I'm keen" in d["body"]     # cleaned
+    assert rf.get("Startup Co")["draft_subject"] == d["subject"]   # persisted
+
+
+def test_referral_validation():
+    from backend.agents import referral_finder as rf
+    assert rf.find("")["ok"] is False
+    assert rf.draft("Co", {})["ok"] is False       # no contact name

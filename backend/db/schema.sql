@@ -78,6 +78,21 @@ CREATE TABLE IF NOT EXISTS profile (
   updated_at       TEXT
 );
 
+-- Referral targets per company: the best person to ask for a referral (public sources only)
+-- plus the last drafted referral email. One row per company.
+CREATE TABLE IF NOT EXISTS referrals (
+  id            INTEGER PRIMARY KEY,
+  tracked_id    INTEGER,           -- optional link to a tracked application
+  company       TEXT NOT NULL UNIQUE,
+  role          TEXT,
+  contacts_json TEXT,              -- JSON array of {name,title,seniority,why_them,public_profile_url,email,email_status,email_note,source}
+  draft_to      TEXT,              -- chosen contact (email or name) the current draft targets
+  draft_subject TEXT,
+  draft_body    TEXT,
+  gmail_draft_id TEXT,
+  computed_at   TEXT
+);
+
 -- Interview prep per tracked application: company brief + likely questions + talking points.
 CREATE TABLE IF NOT EXISTS interview_prep (
   id          INTEGER PRIMARY KEY,
