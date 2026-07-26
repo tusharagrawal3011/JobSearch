@@ -27,19 +27,19 @@ _SUBMIT_WORDS = re.compile(r"\b(submit application|submit|apply now|send applica
 # Portal domains whose "Apply" buttons usually redirect to the employer's real ATS.
 _PORTAL_DOMAINS = ("naukri.com", "indeed.com", "cutshort.io")
 
-_CONTACT_LABELS = {
-    "first name": lambda: config.OWNER_FIRST_NAME,
-    "last name": lambda: config.OWNER_LAST_NAME,
-    "full name": lambda: config.OWNER_NAME,
-    "name": lambda: config.OWNER_NAME,
-    "email": lambda: config.OWNER_EMAIL,
-    "phone": lambda: config.OWNER_PHONE,
-    "mobile": lambda: config.OWNER_PHONE,
-    "linkedin": lambda: config.OWNER_LINKEDIN,
-    "github": lambda: config.OWNER_GITHUB,
-    "location": lambda: config.OWNER_LOCATION,
-    "city": lambda: config.OWNER_LOCATION,
+# Form-field label -> profile key. Values are resolved from the effective profile (DB > .env)
+# at fill time, so editing your profile in the UI takes effect immediately.
+_CONTACT_MAP = {
+    "first name": "first_name", "last name": "last_name", "full name": "name",
+    "name": "name", "email": "email", "phone": "phone", "mobile": "phone",
+    "linkedin": "linkedin", "github": "github", "location": "location", "city": "location",
 }
+
+
+def _contact_values() -> dict:
+    from backend import profile
+    p = profile.get()
+    return {label: p.get(key, "") for label, key in _CONTACT_MAP.items()}
 
 
 def _detect_provider(url: str) -> str:
@@ -179,8 +179,8 @@ def _fill_by_label(page, label_substr: str, value: str) -> bool:
 
 
 def _fill_contact_fields(page) -> None:
-    for label, getter in _CONTACT_LABELS.items():
-        _fill_by_label(page, label, getter() or "")
+    for label, value in _contact_values().items():
+        _fill_by_label(page, label, value or "")
 
 
 def _upload_resume(page, pdf_path: str) -> None:
@@ -293,7 +293,7 @@ def _handle_screening(page, track: str) -> list[str]:
                 continue
             if not text or len(text) < 8:
                 continue
-            if any(k in text.lower() for k in _CONTACT_LABELS):   # handled as contact already
+            if any(k in text.lower() for k in _CONTACT_MAP):   # handled as contact already
                 continue
             kind, data = _control_for_label(page, lab)
             if kind == "checkbox":                                # leave consent to the human

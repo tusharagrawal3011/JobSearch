@@ -20,19 +20,21 @@ from backend.llm import client
 
 AGENT = "area_scout"
 
-_SYSTEM = (
-    "You are a tech-recruiting researcher. Using web search, find real companies that are "
-    "HEADQUARTERED IN or have an engineering office in the given area AND are currently hiring "
-    f"engineers matching this profile: {config.OWNER_PROFILE}. Focus on product companies and startups. "
-    "For careers_url, STRONGLY PREFER the company's ATS job-board URL if they use one — i.e. a "
-    "boards.greenhouse.io/<slug>, jobs.lever.co/<slug>, or jobs.ashbyhq.com/<slug> link — since "
-    "that lets the system poll their openings automatically. Fall back to their own careers page "
-    "only if no ATS board is found. "
-    "Return ONLY a JSON array (max 15) of objects: "
-    "{company, hq_area, careers_url, roles (short string of open roles), evidence (where you saw they're hiring)}. "
-    "Only include companies you can verify from a real public page. No duplicates, no staffing "
-    "agencies, no job-aggregator sites. If none, return []."
-)
+def _system() -> str:
+    from backend import profile
+    return (
+        "You are a tech-recruiting researcher. Using web search, find real companies that are "
+        "HEADQUARTERED IN or have an engineering office in the given area AND are currently hiring "
+        f"engineers matching this profile: {profile.get()['profile_summary']}. Focus on product companies and startups. "
+        "For careers_url, STRONGLY PREFER the company's ATS job-board URL if they use one — i.e. a "
+        "boards.greenhouse.io/<slug>, jobs.lever.co/<slug>, or jobs.ashbyhq.com/<slug> link — since "
+        "that lets the system poll their openings automatically. Fall back to their own careers page "
+        "only if no ATS board is found. "
+        "Return ONLY a JSON array (max 15) of objects: "
+        "{company, hq_area, careers_url, roles (short string of open roles), evidence (where you saw they're hiring)}. "
+        "Only include companies you can verify from a real public page. No duplicates, no staffing "
+        "agencies, no job-aggregator sites. If none, return []."
+    )
 
 
 def _coerce(x):
@@ -46,13 +48,16 @@ def _coerce(x):
 
 def scout(area: str, extra_keywords: str = "") -> list[dict]:
     """Return candidate companies (not yet added) for the area."""
+    from backend import profile
+    p = profile.get()
+    locations = p["location_filters"] or ", ".join(config.LOCATION_FILTERS)
     prompt = (
         f"Area: {area}\n"
-        f"Candidate profile: {config.OWNER_PROFILE}. "
-        f"Target locations: {', '.join(config.LOCATION_FILTERS)}. {extra_keywords}\n\n"
+        f"Candidate profile: {p['profile_summary']}. "
+        f"Target locations: {locations}. {extra_keywords}\n\n"
         "Find companies in this area actively hiring engineers now. Return the JSON array."
     )
-    raw = client.complete_with_web_search(prompt, system=_SYSTEM, tier="fast", max_tokens=3000)
+    raw = client.complete_with_web_search(prompt, system=_system(), tier="fast", max_tokens=3000)
     candidates = _coerce(client._parse_json(raw)) if raw.strip() else []
     out = []
     for c in candidates:

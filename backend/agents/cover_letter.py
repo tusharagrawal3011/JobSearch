@@ -6,7 +6,6 @@ résumé — it never invents experience. Draft-only; the user reviews, edits, a
 """
 from __future__ import annotations
 
-from backend import config
 from backend.db.database import get_conn, log_run, now_iso
 from backend.llm import client
 from backend.resume import latex
@@ -14,16 +13,19 @@ from backend.resume import latex
 AGENT = "cover_letter"
 TRACK_MAP = {"go": "go", "node": "node", "ambiguous": "go", "other": "go"}
 
-_SYSTEM = (
-    f"You write a concise, genuine cover letter for {config.OWNER_NAME} "
-    f"({config.OWNER_PROFILE}) applying to a specific role. "
-    "HARD RULE: ground every claim in the candidate's résumé — never invent experience, "
-    "skills, employers, or metrics. Reference the specific company and role and give concrete, "
-    "résumé-backed reasons the candidate is a strong fit. Professional and warm, not templated; "
-    "no clichés like 'I am writing to express my interest'. 220-320 words, plain text, "
-    f"signed as {config.OWNER_NAME}. "
-    "Return JSON {subject: <email subject line>, body: <the letter, plain text with paragraphs>}."
-)
+def _system() -> str:
+    from backend import profile
+    p = profile.get()
+    return (
+        f"You write a concise, genuine cover letter for {p['name']} "
+        f"({p['profile_summary']}) applying to a specific role. "
+        "HARD RULE: ground every claim in the candidate's résumé — never invent experience, "
+        "skills, employers, or metrics. Reference the specific company and role and give concrete, "
+        "résumé-backed reasons the candidate is a strong fit. Professional and warm, not templated; "
+        "no clichés like 'I am writing to express my interest'. 220-320 words, plain text, "
+        f"signed as {p['name']}. "
+        "Return JSON {subject: <email subject line>, body: <the letter, plain text with paragraphs>}."
+    )
 
 
 def _track(job: dict) -> str:
@@ -61,7 +63,7 @@ def generate(job_id: int, force: bool = False) -> dict:
         f"COMPANY: {job['company']}\nROLE: {job['title']}\n\n"
         f"JOB DESCRIPTION:\n{(job.get('jd_text') or '')[:9000]}\n\n"
         f"CANDIDATE RÉSUMÉ:\n{resume[:9000]}",
-        system=_SYSTEM, tier="smart", max_tokens=1200,
+        system=_system(), tier="smart", max_tokens=1200,
     )
     subject = clean_text(out.get("subject", "") if isinstance(out, dict) else "")
     body = clean_text(out.get("body", "") if isinstance(out, dict) else str(out))

@@ -9,22 +9,25 @@ from __future__ import annotations
 
 import json
 
-from backend import config
+from backend import profile
 from backend.db.database import get_conn, log_run, now_iso
 from backend.integrations import gmail
 from backend.llm import claude
 
 AGENT = "outreach_composer"
 
-_SYSTEM = (
-    f"You draft brief, warm, specific professional outreach for {config.OWNER_NAME} "
-    f"({config.OWNER_PROFILE}) who has just applied to a role. Reference the specific company "
-    "and role. No flattery filler, no generic 'I came across your profile'. "
-    f"Their LinkedIn is {config.OWNER_LINKEDIN}. "
-    "Return JSON: {linkedin:{text}, email:{subject, body}}. "
-    "LinkedIn message <= 500 chars (connection-note friendly). Email 90-150 words, "
-    f"plain text, signed off as {config.OWNER_NAME}. Both must sound human, not templated."
-)
+def _system() -> str:
+    from backend import profile
+    p = profile.get()
+    return (
+        f"You draft brief, warm, specific professional outreach for {p['name']} "
+        f"({p['profile_summary']}) who has just applied to a role. Reference the specific company "
+        "and role. No flattery filler, no generic 'I came across your profile'. "
+        f"Their LinkedIn is {p['linkedin']}. "
+        "Return JSON: {linkedin:{text}, email:{subject, body}}. "
+        "LinkedIn message <= 500 chars (connection-note friendly). Email 90-150 words, "
+        f"plain text, signed off as {p['name']}. Both must sound human, not templated."
+    )
 
 
 def compose_for_contact(contact_id: int, create_gmail_draft: bool = True) -> dict:
@@ -56,7 +59,7 @@ def compose_for_contact(contact_id: int, create_gmail_draft: bool = True) -> dic
         f"Role I applied to: {app['title']}.\n"
         f"Contact public profile: {contact.get('public_profile_url','')}\n"
         "Draft the LinkedIn message and the email.",
-        system=_SYSTEM, tier="smart", max_tokens=1500,
+        system=_system(), tier="smart", max_tokens=1500,
     )
 
     li = (drafts.get("linkedin") or {}).get("text", "")
@@ -70,7 +73,7 @@ def compose_for_contact(contact_id: int, create_gmail_draft: bool = True) -> dic
         note = "Gmail not connected — email text saved; connect Gmail to auto-create drafts."
     elif create_gmail_draft:
         try:
-            to = _guess_email(contact) or config.OWNER_EMAIL  # self-draft if unknown
+            to = _guess_email(contact) or profile.get()["email"]  # self-draft if unknown
             gmail_draft_id = gmail.create_draft(to, em.get("subject", ""), em.get("body", ""))
         except Exception as e:  # noqa: BLE001
             note = f"Gmail draft not created ({e}); email text saved for manual send."

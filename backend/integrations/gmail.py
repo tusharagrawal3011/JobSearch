@@ -148,7 +148,10 @@ def create_draft(to: str, subject: str, body: str, from_addr: Optional[str] = No
     svc = _service()
     mime = MIMEText(body)
     mime["to"] = to
-    mime["from"] = from_addr or config.OWNER_EMAIL
+    if from_addr is None:
+        from backend import profile
+        from_addr = profile.get()["email"]
+    mime["from"] = from_addr
     mime["subject"] = subject
     raw = base64.urlsafe_b64encode(mime.as_bytes()).decode()
     draft = svc.users().drafts().create(userId="me", body={"message": {"raw": raw}}).execute()

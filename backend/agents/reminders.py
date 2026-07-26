@@ -71,21 +71,25 @@ def next_actions() -> dict:
 
 
 def _last_sender_email(conn, tracked_id: int) -> str | None:
+    from backend import profile
     row = conn.execute(
         """SELECT sender FROM tracked_events WHERE tracked_id=? AND sender NOT LIKE ?
-           ORDER BY ts DESC LIMIT 1""", (tracked_id, f"%{config.OWNER_EMAIL}%")).fetchone()
+           ORDER BY ts DESC LIMIT 1""", (tracked_id, f"%{profile.get()['email']}%")).fetchone()
     if not row:
         return None
     m = re.search(r"[\w.+-]+@[\w.-]+\.\w+", row["sender"] or "")
     return m.group(0) if m else None
 
 
-_SYSTEM = (
-    f"You write a very short, polite follow-up email for {config.OWNER_NAME}, checking in on a "
-    "job application with no recent response. Warm, brief (60-110 words), not pushy, reaffirm "
-    "genuine interest, invite next steps. Return JSON {subject, body}. Sign as "
-    f"{config.OWNER_NAME}. No clichés, no exaggeration."
-)
+def _system() -> str:
+    from backend import profile
+    name = profile.get()["name"]
+    return (
+        f"You write a very short, polite follow-up email for {name}, checking in on a "
+        "job application with no recent response. Warm, brief (60-110 words), not pushy, reaffirm "
+        "genuine interest, invite next steps. Return JSON {subject, body}. Sign as "
+        f"{name}. No clichés, no exaggeration."
+    )
 
 
 def followup_draft(tracked_id: int) -> dict:
@@ -102,7 +106,7 @@ def followup_draft(tracked_id: int) -> dict:
     out = client.complete_json(
         f"Company: {app['company']}\nRole applied to: {app['role'] or app['latest_subject']}\n"
         f"Applied around {app.get('first_seen','')[:10]}, no recent response.",
-        system=_SYSTEM, tier="smart", max_tokens=500,
+        system=_system(), tier="smart", max_tokens=500,
     )
     subject = clean_text(out.get("subject", "") if isinstance(out, dict) else "")
     body = clean_text(out.get("body", "") if isinstance(out, dict) else str(out))
