@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "../lib/api";
 
 const STATUS_LABEL = {
@@ -101,6 +102,9 @@ function AppCard({ app, onChange }) {
                 onClick={() => setLogging(!logging)} title="Log a call / message / update">
           {logging ? "Cancel" : "＋ Log update"}
         </button>
+        <Link href={`/referrals?company=${encodeURIComponent(app.company)}&role=${encodeURIComponent(app.role || "")}`}
+              className="ghost" style={{ fontSize: 12, padding: "4px 10px", textDecoration: "none" }}
+              title="Find someone to ask for a referral">Ask for referral</Link>
         <select className="ghost" style={{ width: "auto", fontSize: 12, padding: "4px 8px" }}
                 disabled={busy} value={app.status}
                 onChange={(e) => update({ status: e.target.value })} title="Override status">
