@@ -115,8 +115,9 @@ def finalize(resume_id: int, edited_diff: dict | None = None) -> dict:
 
         status = "edited" if edited_diff is not None else "approved"
         conn.execute(
-            """UPDATE resumes SET diff_json=?, final_pdf_path=?, hitl_status=?, reviewed_at=? WHERE id=?""",
-            (json.dumps(diff, ensure_ascii=False), result.get("pdf_path"), status, now_iso(), resume_id),
+            """UPDATE resumes SET diff_json=?, tex_content=?, final_pdf_path=?, hitl_status=?, reviewed_at=? WHERE id=?""",
+            (json.dumps(diff, ensure_ascii=False), tailored_tex, result.get("pdf_path"),
+             status, now_iso(), resume_id),
         )
         conn.execute("UPDATE jobs SET status='ready_to_apply' WHERE id=?", (row["job_id"],))
         log_run(conn, AGENT, f"resume={resume_id}", output_ref=result.get("mode", ""),

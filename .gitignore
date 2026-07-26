@@ -26,6 +26,7 @@ TAresume.txt
 *.sqlite3
 langgraph_checkpoints.sqlite
 output/
+data/
 
 # ---- Python ----
 .venv/

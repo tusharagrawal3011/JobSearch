@@ -36,11 +36,25 @@ CREATE TABLE IF NOT EXISTS jobs (
   UNIQUE(company_id, external_id)
 );
 
+-- The user's uploaded base resumes (the resume library). One 'active' per track is used
+-- for tailoring; older uploads are kept for history.
+CREATE TABLE IF NOT EXISTS base_resumes (
+  id           INTEGER PRIMARY KEY,
+  track        TEXT,          -- go | node (or any label you use for a resume variant)
+  label        TEXT,
+  tex_content  TEXT,          -- LaTeX source (enables real tailoring + side-by-side view)
+  pdf_path     TEXT,          -- stored PDF for upload to applications
+  filename     TEXT,
+  active       INTEGER DEFAULT 1,
+  uploaded_at  TEXT
+);
+
 CREATE TABLE IF NOT EXISTS resumes (
   id             INTEGER PRIMARY KEY,
   job_id         INTEGER REFERENCES jobs(id),
   base_track     TEXT CHECK(base_track IN ('go','node')),
   diff_json      TEXT,
+  tex_content    TEXT,        -- the tailored LaTeX (so the UI can show base vs tailored)
   final_pdf_path TEXT,
   hitl_status    TEXT CHECK(hitl_status IN ('pending','approved','edited','rejected')) DEFAULT 'pending',
   reviewed_at    TEXT

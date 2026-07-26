@@ -45,16 +45,23 @@ _SKELETON = {
 
 def base_resume_text(track: str) -> str:
     """Best available representation of the base resume for diff proposals.
-    Prefers .tex source, then extracted PDF text, then a structural skeleton."""
+    Prefers an uploaded resume in the DB library, then the .tex file, then extracted PDF
+    text, then a structural skeleton."""
+    from backend.resume import store
+
+    db_tex = store.get_base_tex(track)
+    if db_tex:
+        return db_tex
     tex = base_tex_path(track)
     if tex.exists():
         return tex.read_text(encoding="utf-8", errors="ignore")
-    pdf = base_pdf_path(track)
-    if pdf.exists():
+    pdf_path = store.get_base_pdf_path(track) or (str(base_pdf_path(track))
+                                                 if base_pdf_path(track).exists() else None)
+    if pdf_path:
         try:
             from pypdf import PdfReader
 
-            reader = PdfReader(str(pdf))
+            reader = PdfReader(pdf_path)
             return "\n".join(page.extract_text() or "" for page in reader.pages)
         except Exception:  # noqa: BLE001
             pass
@@ -62,6 +69,12 @@ def base_resume_text(track: str) -> str:
 
 
 def base_tex_source(track: str) -> Optional[str]:
+    """Uploaded resume's LaTeX (DB) first, then the .tex file."""
+    from backend.resume import store
+
+    db_tex = store.get_base_tex(track)
+    if db_tex:
+        return db_tex
     tex = base_tex_path(track)
     return tex.read_text(encoding="utf-8", errors="ignore") if tex.exists() else None
 
@@ -79,12 +92,15 @@ def render(job_id: int, track: str, tailored_tex: Optional[str]) -> dict:
     out_pdf = config.RESUME_OUTPUT_DIR / f"resume_{track}_job{job_id}.pdf"
 
     if not tailored_tex:
-        base = base_pdf_path(track)
-        if base.exists():
+        from backend.resume import store
+
+        base = store.get_base_pdf_path(track) or (
+            str(base_pdf_path(track)) if base_pdf_path(track).exists() else None)
+        if base:
             shutil.copy(base, out_pdf)
             return {"pdf_path": str(out_pdf), "tex_path": None, "mode": "base_pdf_copy",
                     "ok": True, "note": f"No {track} .tex source; used base PDF unchanged. "
-                                        "Provide RESUME_*_TEX for real tailoring."}
+                                        "Upload a .tex resume for real tailoring."}
         return {"pdf_path": None, "tex_path": None, "mode": "none", "ok": False,
                 "note": f"No base .tex or .pdf found for track '{track}'."}
 
