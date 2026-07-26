@@ -92,6 +92,9 @@ OWNER_PROFILE = os.getenv(
     "OWNER_PROFILE",
     "backend / full-stack software engineer (e.g. Go, Node.js, distributed systems, AI)")
 
+# Days after applying (with no response) before the tracker nudges you to follow up.
+FOLLOWUP_DAYS = int(os.getenv("FOLLOWUP_DAYS", "12"))
+
 EMAIL_ALERT_WINDOW_HOURS = int(os.getenv("EMAIL_ALERT_WINDOW_HOURS", "48"))
 ALERT_SENDER_DOMAINS = [
     d.strip().lower()
