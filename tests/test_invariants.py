@@ -190,6 +190,51 @@ def test_resume_store_roundtrip(tmp_path, monkeypatch):
     assert store.get_base_tex("go") == "v2"
 
 
+# ---------------- Résumé ↔ JD match ----------------
+
+def _seed_job(db):
+    with db.get_conn() as c:
+        c.execute("INSERT INTO companies (id,name,ats_type) VALUES (1,'Acme','greenhouse')")
+        c.execute("""INSERT INTO jobs (id,company_id,title,jd_text,stack_guess,status)
+                     VALUES (1,1,'Backend Engineer',?, 'go','analyzed')""",
+                  ("We want Go, Kafka and Python experience. " * 8,))
+
+
+def test_resume_match_score_and_cache(tmp_path, monkeypatch):
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    _seed_job(database)
+    from backend.llm import client
+    from backend.agents import resume_match
+    monkeypatch.setattr(client, "complete_json",
+                        lambda *a, **k: {"score": 80, "matched": ["Go"],
+                                         "missing": ["Kafka", "Python"], "summary": "solid"})
+    r = resume_match.score(1)
+    assert r["score"] == 80 and "Kafka" in r["missing"] and r["cached"] is False
+    # second call is served from cache even though the LLM would now say something different
+    monkeypatch.setattr(client, "complete_json", lambda *a, **k: {"score": 5})
+    assert resume_match.score(1)["score"] == 80 and resume_match.score(1)["cached"] is True
+
+
+def test_resume_match_optimize_is_truthful(tmp_path, monkeypatch):
+    from backend import config
+    from backend.db import database
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "t.db")
+    database.init_db()
+    _seed_job(database)
+    from backend.llm import client
+    from backend.agents import resume_match
+    monkeypatch.setattr(client, "complete_json", lambda *a, **k: {
+        "professional_summary": {"before": "", "after": ""}, "technical_skills": {"before": "", "after": ""},
+        "added_keywords": ["Kafka"], "skipped_no_evidence": ["Python"], "notes": ""})
+    r = resume_match.optimize(1, ["Kafka", "Python"])
+    assert r["ok"] and "Kafka" in r["added_keywords"] and "Python" in r["skipped_no_evidence"]
+    with database.get_conn() as c:
+        assert c.execute("SELECT COUNT(*) FROM resumes WHERE job_id=1").fetchone()[0] == 1
+
+
 def test_ats_detect_from_url_parses_known_hosts():
     """URL parsing picks the right provider/slug (regex only; probing is skipped here)."""
     import re
