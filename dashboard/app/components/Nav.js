@@ -17,9 +17,11 @@ const LINKS = [
 export default function Nav() {
   const path = usePathname();
   const [counts, setCounts] = useState({});
+  const [gmail, setGmail] = useState(null);
 
   useEffect(() => {
     api.get("/api/digest").then((d) => setCounts(d.pending || {})).catch(() => {});
+    api.get("/api/gmail/status").then((s) => setGmail(s.connected)).catch(() => setGmail(null));
   }, [path]);
 
   return (
@@ -35,6 +37,13 @@ export default function Nav() {
           </Link>
         ))}
       </nav>
+      {gmail === false && (
+        <div className="gmail-status" title="Email parsing, the tracker and outreach drafts need Gmail">
+          ● Gmail not connected
+          <span>Discovery &amp; tailoring still work. Add credentials.json to enable email features.</span>
+        </div>
+      )}
+      {gmail === true && <div className="gmail-status ok">● Gmail connected</div>}
     </aside>
   );
 }

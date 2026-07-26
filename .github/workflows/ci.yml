@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+
+jobs:
+  backend:
+    name: Backend (import check + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Import check (all modules load without a network/key)
+        run: |
+          python - <<'PY'
+          import importlib
+          mods = [
+              "backend.config", "backend.db.database", "backend.db.seed",
+              "backend.ats.detector", "backend.llm.client", "backend.llm.providers",
+              "backend.integrations.gmail", "backend.resume.latex",
+              "backend.agents.email_parser", "backend.agents.job_discovery",
+              "backend.agents.jd_analyzer", "backend.agents.resume_tailor",
+              "backend.agents.application_submission", "backend.agents.contact_discovery",
+              "backend.agents.outreach_composer", "backend.agents.daily_reporter",
+              "backend.agents.application_tracker", "backend.agents.area_scout",
+              "backend.agents.career_reader", "backend.graph.pipeline", "backend.api.main",
+          ]
+          for m in mods:
+              importlib.import_module(m)
+          print(f"OK: {len(mods)} modules imported")
+          PY
+      - name: Run tests
+        run: pytest -q
+
+  dashboard:
+    name: Dashboard (build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install & build
+        working-directory: dashboard
+        run: |
+          npm ci
+          npm run build

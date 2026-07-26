@@ -89,6 +89,25 @@ def test_coerce_jobs_normalizes_and_rejects_junk():
         _coerce_jobs(["a string", "not an object"])           # weak-model junk -> rejected
 
 
+# ---------------- Gmail optional ----------------
+
+def test_gmail_optional_email_parser_skips_cleanly(monkeypatch):
+    """With Gmail not connected, the email parser skips without OAuth/network."""
+    from backend.agents import email_parser
+    from backend.integrations import gmail
+    monkeypatch.setattr(gmail, "is_configured", lambda: False)
+    res = email_parser.run()
+    assert res["ok"] is True and res.get("skipped") == "Gmail not connected"
+
+
+def test_gmail_optional_tracker_skips_cleanly(monkeypatch):
+    from backend.agents import application_tracker
+    from backend.integrations import gmail
+    monkeypatch.setattr(gmail, "is_configured", lambda: False)
+    res = application_tracker.run()
+    assert res["ok"] is True and res.get("skipped") == "Gmail not connected"
+
+
 # ---------------- Smart screening fill ----------------
 
 def test_pick_option_normalized_matches_without_llm():

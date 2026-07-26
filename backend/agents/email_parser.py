@@ -94,7 +94,10 @@ def _resolve_company_id(conn, name: str) -> int:
 
 
 def run(window_hours: int | None = None) -> dict:
-    """Parse recent alert emails into jobs. Returns a summary dict."""
+    """Parse recent alert emails into jobs. Returns a summary dict.
+    Gmail is optional — if it isn't configured, this skips cleanly (no OAuth prompt)."""
+    if not gmail.is_configured():
+        return {"agent": AGENT, "ok": True, "skipped": "Gmail not connected", "inserted": 0}
     window = window_hours or config.EMAIL_ALERT_WINDOW_HOURS
     inserted, parsed_emails, errors = 0, 0, 0
 

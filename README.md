@@ -102,12 +102,22 @@ cp resume_go.sample.tex resume_node.tex   # a second variant, e.g. emphasizing a
 The tailor only edits the summary, skills, and bullet **order** — it never invents experience.
 Set `RESUME_RENDER_MODE=manual` (compile on Overleaf) or `pdflatex` (local LaTeX install).
 
-### 4. Gmail access (for email parsing + outreach drafts)
+### 4. Gmail access — *optional*
+**You can skip this and still use the app** — ATS discovery, JD analysis, and resume tailoring
+all work without Gmail. Connecting Gmail additionally enables **email-alert parsing**, the
+**application tracker**, and **auto-created outreach drafts**. Without it, those features simply
+skip (the dashboard shows a "Gmail not connected" note) — nothing errors or prompts.
+
+To connect it:
 1. In [Google Cloud Console](https://console.cloud.google.com): create a project → enable the
    **Gmail API** → **OAuth consent screen** (External, add yourself as a Test user) →
    **Credentials → OAuth client ID → Desktop app** → download the JSON.
 2. Save it as `credentials.json` in the repo root. First run opens a browser for consent once.
    Scopes: `gmail.readonly` + `gmail.compose` — **never** send.
+
+> Each user brings their own OAuth client, so it stays fully local and private. A one-click
+> "Sign in with Google" would require a hosted service + Google's restricted-scope verification
+> — that's on the [roadmap](#roadmap), not the local tool.
 
 ### 5. Set up job alerts (one-time, per portal)
 On Naukri / Indeed / Cutshort (and LinkedIn, Wellfound, etc.), create job alerts with your
