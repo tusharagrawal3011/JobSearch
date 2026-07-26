@@ -364,6 +364,20 @@ def cover_letter_save(job_id: int, body: CoverLetterSave):
     return cover_letter.save(job_id, body.subject, body.body)
 
 
+# ---------------- Reminders / next actions ----------------
+
+@app.get("/api/reminders")
+def reminders():
+    from backend.agents import reminders as rem
+    return rem.next_actions()
+
+
+@app.post("/api/reminders/{tracked_id}/followup")
+def reminders_followup(tracked_id: int):
+    from backend.agents import reminders as rem
+    return rem.followup_draft(tracked_id)
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "db": str(config.DB_PATH)}

@@ -247,6 +247,20 @@ def test_resume_match_optimize_is_truthful(tmp_path, monkeypatch):
 
 # ---------------- Cover letters ----------------
 
+def test_reminders_classify_action():
+    from backend.agents.reminders import classify_action
+    from backend import config
+    d = config.FOLLOWUP_DAYS
+    assert classify_action("offer", 1, False)["urgency"] == "now"
+    assert classify_action("assessment", 1, False)["urgency"] == "soon"
+    assert classify_action("interview", 1, False)["can_followup"] is True
+    assert classify_action("applied", 2 * d + 1, False)["urgency"] == "now"     # very stale
+    assert classify_action("applied", d + 1, False)["urgency"] == "soon"
+    assert classify_action("applied", 1, False)["urgency"] == "waiting"         # fresh
+    # a flagged pending step (needs_action) wins over the age rule
+    assert classify_action("interview", 1, True, "Confirm slot")["action"] == "Confirm slot"
+
+
 def test_cover_letter_clean_text():
     from backend.agents.cover_letter import clean_text
     assert clean_text("a—b") == "a - b"              # em dash
