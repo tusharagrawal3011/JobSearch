@@ -60,6 +60,17 @@ CREATE TABLE IF NOT EXISTS resumes (
   reviewed_at    TEXT
 );
 
+-- Interview prep per tracked application: company brief + likely questions + talking points.
+CREATE TABLE IF NOT EXISTS interview_prep (
+  id          INTEGER PRIMARY KEY,
+  tracked_id  INTEGER UNIQUE REFERENCES tracked_applications(id),
+  company     TEXT,
+  role        TEXT,
+  brief       TEXT,       -- company research brief (public web)
+  prep_json   TEXT,       -- {technical_questions, behavioral_questions, gap_questions, talking_points, questions_to_ask}
+  created_at  TEXT
+);
+
 -- Tailored cover letters per job (generated from the JD + résumé; honest, editable).
 CREATE TABLE IF NOT EXISTS cover_letters (
   id          INTEGER PRIMARY KEY,
