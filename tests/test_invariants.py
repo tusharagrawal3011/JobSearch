@@ -89,6 +89,35 @@ def test_coerce_jobs_normalizes_and_rejects_junk():
         _coerce_jobs(["a string", "not an object"])           # weak-model junk -> rejected
 
 
+# ---------------- Smart screening fill ----------------
+
+def test_pick_option_normalized_matches_without_llm():
+    from backend.agents.screening import pick_option
+    assert pick_option("No", ["Yes", "No"]) == "No"                     # exact
+    assert pick_option("Bengaluru", ["Remote", "Bengaluru", "Pune"]) == "Bengaluru"
+    assert pick_option("5 years", ["0-2 years", "5 years experience"]) == "5 years experience"  # substring
+    assert pick_option("", ["Yes", "No"]) is None                       # empty answer
+    assert pick_option("x", []) is None                                 # no options
+
+
+def test_pick_option_llm_fallback(monkeypatch):
+    from backend.agents import screening
+    from backend.llm import client
+    # no normalized match -> LLM chooses; must return a verbatim option
+    monkeypatch.setattr(client, "complete_json", lambda *a, **k: {"option": "3-5 years"})
+    assert screening.pick_option("about four years", ["0-2 years", "3-5 years"]) == "3-5 years"
+    # LLM returns something not in the list -> rejected
+    monkeypatch.setattr(client, "complete_json", lambda *a, **k: {"option": "made up"})
+    assert screening.pick_option("about four years", ["0-2 years", "3-5 years"]) is None
+
+
+def test_looks_like_question():
+    from backend.agents.application_submission import _looks_like_question
+    assert _looks_like_question("How many years of experience do you have?") is True
+    assert _looks_like_question("Current CTC") is True
+    assert _looks_like_question("Middle name") is False
+
+
 def test_ats_detect_from_url_parses_known_hosts():
     """URL parsing picks the right provider/slug (regex only; probing is skipped here)."""
     import re
