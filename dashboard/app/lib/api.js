@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
+const BASE = process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8010";
 
 async function req(path, opts = {}) {
   const res = await fetch(`${BASE}${path}`, {

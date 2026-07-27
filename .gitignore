@@ -1,6 +1,4 @@
 # ---- Secrets & credentials (NEVER commit) ----
-.env
-.env.local
 .env.*.local
 !.env.example
 dashboard/.env.local
@@ -48,3 +46,4 @@ node_modules/
 Thumbs.db
 .idea/
 .vscode/
+config.bat

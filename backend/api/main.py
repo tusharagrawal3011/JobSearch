@@ -5,11 +5,12 @@ page and the human-checkpoint actions (approve/reject resume diffs, launch apply
 applied, save screening answers, verify contacts, add company). It NEVER exposes an
 endpoint that submits an application or sends an email.
 
-Run:  uvicorn backend.api.main:app --host 127.0.0.1 --port 8000
+Run:  uvicorn backend.api.main:app --host 127.0.0.1 --port 8010
 """
 from __future__ import annotations
 
 import json
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -19,11 +20,21 @@ from pydantic import BaseModel
 from backend import config
 from backend.agents import (application_submission, contact_discovery, daily_reporter,
                             outreach_composer, resume_tailor, screening)
-from backend.db.database import get_conn
+from backend.db.database import get_conn, init_db
 from backend.db.seed import add_company
 from backend.integrations import gmail
 
-app = FastAPI(title="Job Application Agent — Local API")
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    # Ensure the schema exists and is up to date before serving. init_db() is idempotent
+    # (CREATE TABLE IF NOT EXISTS + additive migrations), so pulling new features and
+    # restarting the API is enough — no manual migration step, no "no such table" errors.
+    init_db()
+    yield
+
+
+app = FastAPI(title="Job Application Agent — Local API", lifespan=_lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
